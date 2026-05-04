@@ -1,0 +1,40 @@
+kind = "web"
+previewPath = "/"
+title = "Footprint Navigator"
+version = "1.0.0"
+id = "artifacts/footprint-pdf"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18965
+
+[services.development]
+run = "pnpm --filter @workspace/footprint-pdf run dev"
+
+[services.production]
+
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/footprint-pdf", "run", "build"]
+
+[services.production.build.env]
+NODE_ENV = "production"
+
+[services.production.run]
+args = ["node", "--enable-source-maps", "artifacts/footprint-pdf/dist/server/index.js"]
+
+[services.production.run.env]
+PORT = "18965"
+NODE_ENV = "production"
+
+[services.production.health.startup]
+path = "/pdf-api/healthz"
+
+[services.env]
+PORT = "18965"
+BASE_PATH = "/"

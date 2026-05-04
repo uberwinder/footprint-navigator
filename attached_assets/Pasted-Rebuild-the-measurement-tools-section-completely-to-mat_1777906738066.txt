@@ -1,0 +1,88 @@
+Rebuild the measurement tools section completely to match Bluebeam's layout. Here is everything to change:
+
+PART 1 — MENU RESTRUCTURE:
+
+1. Move "Scale Calibration" OUT of Document menu and INTO Tools menu under Measure submenu
+2. Remove "Scale Calibration" from Document menu entirely
+3. Add "Measure" as a submenu item in Tools menu with a right arrow indicator showing it has children
+4. The Measure submenu opens on hover and contains these items in this exact order:
+   - Set Scale... (moves here from Document menu, action: "calibrate-scale")
+   - Separator
+   - Length (Shift+Alt+L)
+   - Polylength (Shift+Alt+Q)
+   - Area (Shift+Alt+A)
+   - Perimeter (Shift+Alt+P)
+   - Diameter — Coming Soon
+   - Center Radius — Coming Soon
+   - 3-Point Radius — Coming Soon
+   - Angle (Shift+Alt+G)
+   - Volume — Coming Soon
+   - Separator
+   - Polygon Cutout — Coming Soon
+   - Ellipse Cutout — Coming Soon
+   - Separator
+   - Count (Shift+Alt+C)
+   - Dynamic Fill — Coming Soon
+
+5. Coming Soon items show a toast when clicked: "[Tool Name] — Coming Soon"
+6. Active tools (Length, Polylength, Area, Perimeter, Angle, Count) wire to their tool actions
+
+PART 2 — BUILD ALL WORKING MEASUREMENT TOOLS:
+
+Keep all measurement infrastructure from the previous build (measureCanvasRef, measureHitRef, measurePoints, measurements state, drawMeasurements function, measurements panel).
+
+ADD POLYLENGTH TOOL:
+- Click to add multiple points forming a connected path (not closed)
+- Double-click to complete
+- Calculate total length as sum of all segment lengths
+- Draw connected line segments with arrows at start and end
+- Show total length label near last point: "Total: 48'-6\""
+- Show individual segment lengths along each segment
+
+ADD ANGLE TOOL:
+- Click point 1 (vertex of angle)
+- Click point 2 (first ray)
+- Click point 3 (second ray)
+- Draw two lines from vertex to each ray point
+- Calculate angle between the two rays using Math.atan2
+- Show angle label at vertex: "45.0°"
+- Draw a small arc at the vertex showing the angle
+
+KEEP EXISTING TOOLS:
+- Length (already built)
+- Area (already built)
+- Perimeter (already built)
+- Count (already built)
+
+PART 3 — BOTTOM TOOLBAR UPDATE:
+Replace current measurement buttons with:
+- Separator
+- "L" button → length, shortcut Shift+Alt+L, tooltip "Length"
+- "PL" button → polylength, shortcut Shift+Alt+Q, tooltip "Polylength"
+- "A" button → area, shortcut Shift+Alt+A, tooltip "Area"
+- "P" button → perimeter, shortcut Shift+Alt+P, tooltip "Perimeter"
+- "∠" button → angle, shortcut Shift+Alt+G, tooltip "Angle"
+- "#" button → count, shortcut Shift+Alt+C, tooltip "Count"
+Active tool highlights electric blue.
+
+PART 4 — KEYBOARD SHORTCUTS:
+Update onKey handler:
+- Shift+Alt+L → length tool
+- Shift+Alt+Q → polylength tool
+- Shift+Alt+A → area tool
+- Shift+Alt+P → perimeter tool
+- Shift+Alt+G → angle tool
+- Shift+Alt+C → count tool
+- Keep existing: Escape cancels in-progress, Backspace removes last point
+
+PART 5 — SUBMENU STYLING:
+The Measure submenu must:
+- Open on hover of the Measure menu item
+- Position to the right of the Tools dropdown
+- Have the same dark styling as other dropdowns (#1a1a1a background, white text)
+- Show keyboard shortcuts right-aligned next to each item
+- Coming Soon items styled in gray (#666) with "Coming Soon" label in smaller text
+- Close when mouse leaves both the menu item and the submenu
+- Has a right arrow "›" indicator on the Measure menu item
+
+Do not change: chat panel, modelRouter, thumbnails, document summary, existing tools (select, pan, text, zoom), or any non-measurement menu items.

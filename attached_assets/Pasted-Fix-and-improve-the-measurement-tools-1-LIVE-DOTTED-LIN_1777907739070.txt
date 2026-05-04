@@ -1,0 +1,56 @@
+Fix and improve the measurement tools:
+
+1. LIVE DOTTED LINE PREVIEW (all tools):
+Add a mouse move handler on the measureHitRef div that draws a live preview line from the last placed point to the current mouse cursor position.
+
+- When measureTool is active and measurePoints.length > 0: draw a dotted/dashed line from the last point in measurePoints to the current mouse position
+- Line style: dashed, electric blue (#007BFF), opacity 0.6, line width 1.5px
+- setLineDash([6, 4]) for the dashed effect
+- For polylength: show running total length in a small tooltip near the cursor: "Total so far: 24'-6\""
+- For area/perimeter: show a closing line from current mouse position back to the first point as well, so user can see the polygon taking shape
+- For angle: show the second ray line following the mouse after first two points are placed
+- For length: show the line from point 1 to mouse cursor before point 2 is clicked
+- Store mouse position in a ref (not state) to avoid re-renders: mousePosRef = useRef({x:0, y:0})
+- The preview line redraws on every mousemove by calling drawMeasureCanvas with the current mouse position included
+- Add a small crosshair cursor indicator at the current mouse position: small blue circle radius 3px
+
+2. FIX AREA TOOL:
+The area tool is not working. Rebuild it:
+- Click to add points — each click adds a point to measurePoints
+- After each click draw the polygon outline connecting all points so far
+- Show the live dotted preview line to current mouse position
+- Also show a dotted closing line from current mouse back to first point so user can visualize the shape
+- Complete the area measurement on ENTER key press (not double-click) — this is more intuitive
+- Also allow double-click to complete as an alternative
+- On completion:
+  - Close the polygon (connect last point back to first)
+  - Fill with rgba(0,123,255,0.15)
+  - Calculate area using shoelace formula
+  - Convert pixel area to real area: realArea = pixelArea / (pixelsPerUnit²)
+  - Format result: feet → "245.3 sq ft", meters → "22.8 m²", inches → "1,764 sq in"
+  - Show label at polygon centroid
+  - Add to measurements array
+  - Clear measurePoints
+- Minimum 3 points required to complete area — if Enter pressed with fewer than 3 points show toast: "Area requires at least 3 points"
+
+3. FIX PERIMETER TOOL:
+Same fix as area — complete on Enter key OR double-click:
+- Minimum 3 points required
+- On completion: calculate sum of all side lengths including closing segment
+- Show label: "Perimeter: 64'-0\""
+- Draw polygon outline, no fill
+
+4. FIX POLYLENGTH:
+Complete on Enter key OR double-click (not just double-click):
+- Minimum 2 points required
+
+5. ENTER KEY HANDLER:
+Add Enter key to the onKey handler:
+- If measureTool is "area" or "perimeter" or "polylength" AND measurePoints.length >= minimum: complete the measurement
+- Otherwise: do nothing (don't interfere with other Enter uses like chat)
+
+6. CURSOR STYLE:
+When any measurement tool is active, show crosshair cursor on the canvas area.
+When hovering over an existing measurement point (within 8px), show a pointer cursor indicating it can be interacted with.
+
+Do not change: chat panel, modelRouter, thumbnails, document summary, scale calibration, menu structure, or any existing tools.

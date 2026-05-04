@@ -1,0 +1,53 @@
+Make these changes to Workspace.jsx:
+
+1. TOP TOOLBAR CLEANUP:
+Remove the tool buttons (hand, arrow, text select, zoom) from the top toolbar (ws-toolbar). These already exist in the bottom toolbar (ws-btbar). Do not remove anything else from the top toolbar — keep zoom controls, page navigation, search box, and all other items.
+
+2. REPLACE SEARCH WITH CHAT INPUT:
+In the bottom toolbar (ws-btbar-center or ws-btbar-right area), replace the existing "Search..." input with a chat input that says "Ask anything..." as placeholder text. When the user clicks it, it expands upward into a chat panel.
+
+3. CHAT PANEL BEHAVIOR:
+- Default state: collapsed — only the "Ask anything..." input bar is visible in the bottom toolbar
+- When user clicks the input OR starts typing, a chat panel expands UPWARD from the bottom toolbar
+- Chat panel height: 300px when open
+- Chat panel sits between the canvas and the bottom toolbar — does not overlap the canvas
+- Smooth expand/collapse animation (200ms)
+- Collapsing does NOT clear chat history
+- Chat history persists in localStorage keyed by filename
+
+4. CHAT PANEL LAYOUT (when expanded):
+- Dark background (#1a1a1a)
+- Top edge has a thin drag handle (4px, cursor: ns-resize) to resize between 150px and 500px
+- Right side of header has a collapse "×" or chevron button
+- Scrollable message area — newest message at bottom, auto-scrolls on new message
+- Bottom: the "Ask anything..." input + Send button
+
+5. MESSAGE STYLING:
+- User messages labeled "User:" in white bold, message text in white
+- Footprint responses labeled "Footprint:" in electric blue (#007BFF) bold, message text in white
+- Keep ALL responses as short as possible — maximum 2-3 sentences
+- Each response includes clickable result cards showing:
+  - Sheet number
+  - Page number  
+  - One-line text snippet
+  - "Go to Page" button — jumps viewer to that page
+- Messages are separated by subtle dividers
+- Chat area is scrollable
+
+6. INPUT BAR:
+- Placeholder: "Ask anything..."
+- No + button
+- No microphone button
+- Just the text input and a Send button
+- Pressing Enter sends
+- Input clears after sending
+- "Footprint is thinking..." appears immediately while processing
+
+7. SEARCH WIRING (no AI yet):
+When user sends a message:
+- If message matches a sheet number pattern (A3.10, P2.01 etc.) → jump directly to that page immediately, respond "Navigating to sheet [X]"
+- All other messages → run keyword search against extracted page text
+- Return top 5 results maximum as clickable cards
+- If no results: "No matches found. Try different keywords."
+
+8. DO NOT change: thumbnails, canvas rendering, menu bar, left panel, status bar, or any existing state beyond what is needed for chat.

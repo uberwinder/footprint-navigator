@@ -1,0 +1,87 @@
+Add "Snap to Content" to the measurement tools. This snaps the cursor to nearby vector lines and endpoints when measurement tools are active. Make it slightly weaker than Bluebeam — snap threshold of 8px instead of Bluebeam's typical 10-12px.
+
+PART 1 — EXTRACT VECTOR PATHS FROM PDF.JS:
+
+Create a new function getPageSnapPoints(page, scale) that:
+1. Calls page.getOperatorList() to get all drawing operations on the page
+2. Calls page.getTextContent() — already cached, skip if available
+3. Parses the operator list to extract line endpoints and path points:
+   - Look for these PDF operators: m (moveto), l (lineto), c (curveto), re (rectangle)
+   - Collect all path points as {x, y} in page coordinate space
+   - Convert to canvas pixel coordinates using the current scale
+4. Also compute midpoints for each line segment (midpoint between consecutive m→l pairs)
+5. Also compute intersections between line segments (use simple line-line intersection math)
+6. Return: { endpoints: [{x,y}], midpoints: [{x,y}], intersections: [{x,y}] }
+7. Cache the result in a Map keyed by pageNum+scale so it only runs once per page per zoom level
+8. Run this async in the background after renderPage completes — do not block rendering
+
+PART 2 — SNAP LOGIC:
+
+Create a snapToContent(mouseX, mouseY, snapPoints, threshold) function:
+- threshold: 8px (slightly weaker than Bluebeam's ~10-12px)
+- Check all endpoints first (highest priority)
+- Then midpoints
+- Then intersections
+- Then nearest point on any line segment
+- Return: { snapped: boolean, x, y, type: "endpoint"|"midpoint"|"intersection"|"nearest" } or null if nothing within threshold
+- If snapped, return the snapped coordinates instead of raw mouse coordinates
+
+PART 3 — SNAP INDICATOR:
+
+When snap is active and cursor is within threshold of a snap point, draw a visual indicator on the measure canvas:
+- Endpoint snap: small blue square outline (8x8px) around the snap point
+- Midpoint snap: small blue triangle (8px) at the snap point
+- Intersection snap: blue X mark (8px) at the snap point
+- Nearest snap: small blue circle outline (6px) at the snap point
+- All indicators: electric blue (#007BFF), line width 1.5px, no fill
+- Draw the indicator in the drawMeasureCanvas function when snapResult is not null
+
+PART 4 — WIRE SNAP INTO MOUSE MOVE:
+
+Update the measureHitRef mousemove handler:
+1. Get raw mouse position
+2. Convert to document coordinates
+3. If snapEnabled and snapPoints exist for current page: call snapToContent
+4. If snap result found: use snapped coordinates for the preview line drawing
+5. Store current snap result in a ref: snapResultRef
+6. The dotted preview line draws to the snapped position not the raw mouse position
+
+Update the measureHitRef click handler:
+1. When user clicks, use snapResultRef.current coordinates if snap is active
+2. This means the placed point snaps to the line endpoint/midpoint automatically
+3. Log: [snap] type: endpoint | raw: {x,y} | snapped: {x,y} | delta: Xpx
+
+PART 5 — SNAP TOGGLE IN BOTTOM TOOLBAR:
+
+Add a snap toggle button to the bottom toolbar, right side near Scale Not Set:
+- Label: "Snap" with a magnet icon or just the word
+- When ON: electric blue background, tooltip "Snap to Content: On"
+- When OFF: gray, tooltip "Snap to Content: Off"
+- Default: ON
+- Keyboard shortcut: F3 (same as Bluebeam)
+- Save preference to localStorage as "navigator-snap-enabled"
+- When OFF: skip all snap calculations entirely
+
+PART 6 — SNAP ONLY ON VECTOR PDFs:
+
+Before activating snap on a page, check if the page has meaningful vector content:
+- If getOperatorList() returns fewer than 10 path operations, treat as scanned/raster
+- Show a subtle indicator in the status bar: "Snap: Vector" or "Snap: Not available (scanned)"
+- On scanned pages, disable snap automatically and show toast once: "Snap to Content requires vector PDF. OCR this document first."
+
+PART 7 — PERFORMANCE:
+- Cache snapPoints per page in a useRef Map — never recompute for the same page+scale
+- Debounce snap computation: only recompute when scale changes by more than 5%
+- The snap search uses a spatial grid (bucket each point into a 20px grid cell) so lookup is O(1) not O(n) for large drawings with thousands of path points
+- Cap snap points per page at 5,000 to prevent memory issues on complex drawings
+
+SNAP SETTINGS IN NAVIGATOR SETTINGS:
+Add a new "Snap Settings" subsection in the Settings panel under AI settings:
+- Toggle: "Snap to Content" on/off (default on)
+- Toggle: "Snap to Endpoints" on/off (default on)
+- Toggle: "Snap to Midpoints" on/off (default on)
+- Toggle: "Snap to Intersections" on/off (default on)
+- Slider: "Snap Strength" 1-10, default 6 (maps to 4px-12px threshold, our default 8px = 6)
+- All saved to localStorage as "navigator-snap-settings"
+
+Do not change: chat panel, modelRouter, thumbnails, document summary, scale calibration, menu structure, existing tools, or any non-measurement functionality.

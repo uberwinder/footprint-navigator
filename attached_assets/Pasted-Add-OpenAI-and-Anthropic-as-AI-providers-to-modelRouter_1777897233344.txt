@@ -1,0 +1,170 @@
+Add OpenAI and Anthropic as AI providers to modelRouter, add cost tracking, add three preset modes, and add a full model selector UI in Navigator Settings.
+
+IMPORTANT: Remove groq-8b (llama-3.1-8b-instant) entirely from the codebase. It produced inaccurate answers. The minimum model is now groq-70b.
+
+STEP 1 — INSTALL NEW PACKAGES:
+In artifacts/footprint-pdf/server/package.json add and install:
+- openai
+- @anthropic-ai/sdk
+
+STEP 2 — UPDATE modelRouter.ts:
+
+ADD PROVIDER CALL FUNCTIONS:
+
+async function callOpenAI(apiKey, systemPrompt, userContent, model, timeoutMs):
+- Use openai package
+- model options: "gpt-4o-mini" or "gpt-4o"
+- messages: [{role: "system", content: systemPrompt}, {role: "user", content: userContent}]
+- max_tokens: 512
+- Apply withTimeout
+- Throw if empty response
+
+async function callAnthropic(apiKey, systemPrompt, userContent, model, timeoutMs):
+- Use @anthropic-ai/sdk
+- model options: "claude-haiku-4-5" or "claude-sonnet-4-5"
+- Use messages.create with system and user message
+- max_tokens: 512
+- Apply withTimeout
+- Throw if empty response
+
+ADD COST TRACKING:
+Add MODEL_COSTS map:
+{
+  "groq-70b":      { input: 0.59,  output: 0.79,  name: "Groq Llama 3.3 70B" },
+  "gemini-flash":  { input: 0.15,  output: 0.60,  name: "Gemini 2.5 Flash" },
+  "gpt-4o-mini":   { input: 0.15,  output: 0.60,  name: "GPT-4o Mini" },
+  "gpt-4o":        { input: 2.50,  output: 10.00, name: "GPT-4o" },
+  "claude-haiku":  { input: 0.80,  output: 4.00,  name: "Claude Haiku" },
+  "claude-sonnet": { input: 3.00,  output: 15.00, name: "Claude Sonnet" }
+}
+
+Add estimateCost(inputChars, outputChars, modelId):
+- inputTokens = Math.ceil(inputChars / 4)
+- outputTokens = Math.ceil(outputChars / 4)
+- Return: { inputTokens, outputTokens, estimatedCostUSD }
+
+ADD THREE PRESET MODES:
+
+FREE mode — zero API cost, Groq only:
+- simple → groq-70b
+- moderate → groq-70b
+- complex → groq-70b
+- Fallback: gemini-flash if Groq fails
+
+BALANCED mode (default) — smart cost/quality tradeoff:
+- simple → groq-70b
+- moderate → claude-haiku
+- complex → claude-sonnet
+- Fallback chain: if primary fails try next tier up
+
+BEST mode — highest quality regardless of cost:
+- simple → claude-haiku
+- moderate → claude-sonnet
+- complex → gpt-4o
+- Fallback: claude-sonnet if gpt-4o fails
+
+Each model falls back automatically if it fails or times out.
+
+ADD CUSTOM MODEL OVERRIDE:
+If customModels object is passed, use it instead of preset mode:
+customModels: {
+  simple: string,
+  moderate: string,
+  complex: string
+}
+
+UPDATE routeToModel SIGNATURE:
+routeToModel(question, pageTexts, systemPrompt, lengthSuffix, summaryCtx, mode?, customModels?)
+Returns: { answer, model, modelName, complexity, latencyMs, estimatedCostUSD }
+
+UPDATE STARTUP LOGGING:
+[modelRouter] GROQ_API_KEY set: true/false
+[modelRouter] GEMINI_API_KEY set: true/false
+[modelRouter] OPENAI_API_KEY set: true/false
+[modelRouter] ANTHROPIC_API_KEY set: true/false
+
+STEP 3 — UPDATE chat.ts:
+Accept mode and customModels from request body
+Pass through to routeToModel
+Return estimatedCostUSD in response
+
+STEP 4 — SETTINGS PANEL MODEL SELECTOR:
+
+SUBSECTION A — PRESET MODES:
+Three large clickable cards side by side:
+
+FREE card:
+- Label: "Free"
+- Description: "All questions answered by Groq. Zero API cost."
+- Model list: "All questions: Groq 70B"
+- Badge: "Free" in green
+
+BALANCED card (default, pre-selected):
+- Label: "Balanced"
+- Description: "Groq for simple questions, Claude for harder ones. Best value."
+- Model list: "Simple: Groq 70B · Moderate: Claude Haiku · Complex: Claude Sonnet"
+- Badge: "Recommended" in electric blue
+
+BEST card:
+- Label: "Best Quality"
+- Description: "Premium models for every question. Highest accuracy."
+- Model list: "Simple: Claude Haiku · Moderate: Claude Sonnet · Complex: GPT-4o"
+- Badge: "Premium" in purple
+
+Active card has electric blue border and subtle background tint.
+Saves to localStorage as "navigator-mode".
+
+SUBSECTION B — CUSTOM MODEL OVERRIDE:
+Toggle: "Customize models per tier"
+When enabled show three dropdowns:
+
+Simple questions dropdown:
+- Groq Llama 3.3 70B (Free)
+- Gemini 2.5 Flash
+- GPT-4o Mini
+- Claude Haiku
+
+Moderate questions dropdown:
+- Groq Llama 3.3 70B (Free)
+- Gemini 2.5 Flash
+- GPT-4o Mini
+- GPT-4o
+- Claude Haiku
+- Claude Sonnet
+
+Complex questions dropdown:
+- Gemini 2.5 Flash
+- GPT-4o Mini
+- GPT-4o
+- Claude Haiku
+- Claude Sonnet
+
+Save to localStorage as "navigator-custom-models"
+Custom override takes priority over preset mode when enabled.
+
+SUBSECTION C — COST TRACKER:
+Below model selector show live cost display:
+"Session cost: $0.0023"
+"Questions answered: 12 (8 from cache · 3 keyword · 1 AI)"
+Updated after every response using estimatedCostUSD from API response.
+Reset when chat history is cleared.
+Save running total to sessionStorage as "navigator-session-cost"
+
+STEP 5 — WIRE MODE TO CHAT:
+In Workspace.jsx sendChat function:
+- Read mode from localStorage "navigator-mode" (default "balanced")
+- Read customModels from localStorage "navigator-custom-models" if set
+- Send both in chat API request body
+
+STEP 6 — MODEL BADGE UPDATE:
+Update MODEL_DISPLAY map in Workspace.jsx to include all models:
+- groq-70b: blue badge, "Groq 70B"
+- gemini-flash: teal badge (#0d9488), "Gemini Flash"
+- gpt-4o-mini: orange badge (#ea580c), "GPT-4o Mini"
+- gpt-4o: orange badge (#ea580c), "GPT-4o"
+- claude-haiku: purple badge (#7c3aed), "Claude Haiku"
+- claude-sonnet: purple badge (#7c3aed), "Claude Sonnet"
+- keyword: gray badge, "Keyword"
+- memory: gray badge, "Memory"
+
+Do not change: thumbnail panel, PDF viewer, toolbar, navigation, document summary, session memory, or pre-classification.

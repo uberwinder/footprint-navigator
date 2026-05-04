@@ -1,0 +1,70 @@
+Fix two issues:
+
+ISSUE 1 — SELECT TEXT TOOL:
+The text select tool currently does nothing. Fix it by enabling PDF.js text layer rendering.
+
+When the text select tool is active:
+1. Enable the PDF.js text layer on the current page — this renders invisible HTML text elements positioned exactly over the PDF canvas that the browser can select natively
+2. Change cursor to text cursor (cursor: text)
+3. The text layer div must be positioned absolutely over the canvas with pointer-events: auto
+4. When any other tool is active, set pointer-events: none on the text layer so it doesn't block panning and zooming
+5. When page changes or zoom changes, re-render the text layer at the correct scale and position
+6. The text layer should use PDF.js built-in renderTextLayer function
+
+The text layer rendering should work like this:
+- After renderPage completes, also call page.getTextContent()
+- Use pdfjsLib.renderTextLayer() to render text items onto a div overlay
+- Position the div exactly over the canvas using absolute positioning
+- Scale the text layer to match the current zoom level
+
+ISSUE 2 — SCALE CALIBRATION:
+Remove the "Coming Soon" toast from Document → Scale Calibration. Replace with a real calibration mode that works exactly like Bluebeam:
+
+1. When user clicks Document → Scale Calibration:
+   - Set a new state: calibrationMode = true
+   - Change cursor to crosshair on the PDF canvas
+   - Disable all other tools temporarily
+   - Show a persistent blue instruction banner at top of canvas: "Scale Calibration: Click the first point on the drawing"
+   - Set calibrationPoints = []
+
+2. First click on canvas:
+   - Record the x,y pixel coordinates of the click relative to the canvas
+   - Draw a small blue crosshair dot at that point on a calibration overlay canvas
+   - Update banner: "Scale Calibration: Click the second point on the drawing"
+   - Escape key cancels calibration
+
+3. Second click on canvas:
+   - Record second x,y coordinates
+   - Draw second crosshair dot and a blue dashed line between the two points
+   - Calculate pixel distance: Math.sqrt((x2-x1)² + (y2-y1)²)
+   - Show calibration modal with:
+     - Title: "Set Scale"
+     - Text: "Enter the real-world distance between these two points"
+     - Number input (autofocused)
+     - Unit dropdown: inches / feet / meters / millimeters / centimeters
+     - "Set Scale" button (electric blue)
+     - "Cancel" button
+   - Pressing Enter confirms
+
+4. On confirm:
+   - Calculate pixelsPerUnit = pixelDistance / enteredDistance
+   - Save to localStorage: "navigator-scale-[filename]" = { pixelsPerUnit, unit, pixelDistance, realDistance }
+   - Update status bar from "Scale Not Set" to e.g. "1 ft = [X]px" or show the ratio
+   - Show toast: "Scale calibrated successfully"
+   - Exit calibration mode, restore previous tool
+   - Clear calibration overlay
+
+5. On cancel or Escape:
+   - Exit calibration mode
+   - Clear calibration overlay
+   - Restore previous tool
+   - No changes saved
+
+CALIBRATION OVERLAY:
+- Separate transparent canvas element positioned over the PDF canvas
+- Same size as PDF canvas
+- Shows calibration points and line during calibration only
+- Cleared after calibration completes or is cancelled
+- z-index above PDF canvas but below UI elements
+
+Do not change: chat panel, modelRouter, thumbnails, document summary, menu bar items, or measurement tools.

@@ -1,0 +1,76 @@
+Add a new pre-classification category to the chat system for meta/app questions that are not document-related. These questions should be answered directly from hardcoded app knowledge without touching keyword search or any AI model.
+
+PART 1 — META QUESTION CLASSIFIER:
+
+Add a new classification bucket called "META" in the pre-classification layer that fires BEFORE keyword search and Gemini.
+
+Detect META questions using these patterns:
+- Contains: "how does", "what is", "who made", "who built", "who created", "tell me about the app", "about navigator", "about footprint"
+- Contains: "what model", "which AI", "what AI", "how do you work", "how are you built", "what are you"
+- Contains: "what can you do", "what features", "help me understand", "how do I use"
+- Contains: "footprint", "footprint technologies", "footprint navigator" when not in context of a document question
+- Question is entirely unrelated to construction or documents (no sheet numbers, no building terms)
+
+PART 2 — META ANSWER KNOWLEDGE BASE:
+
+Create a hardcoded META_ANSWERS object with these question categories and answers:
+
+ABOUT THE APP:
+Q patterns: "what is footprint navigator", "about this app", "what is this tool"
+A: "Footprint Navigator is a document intelligence platform built by Footprint Technologies. It lets you upload large document sets, navigate them instantly, search page content, and ask questions in plain language. It was designed for construction professionals but works across any industry with large structured document sets."
+
+WHO BUILT IT:
+Q patterns: "who made this", "who built this", "who created this", "who is behind this"
+A: "Footprint Navigator was built by Footprint Technologies. For more information or support, contact us at info@footprintrobotics.com."
+
+HOW AI WORKS:
+Q patterns: "how does the AI work", "how do you work", "how are you built", "explain the AI"
+A: "Navigator uses a multi-tier AI routing system. Simple questions are answered by keyword search at no cost. More complex questions are routed to AI models based on complexity — simple lookups use faster models, complex reasoning uses more powerful ones. Every answer is grounded in your document content to minimize hallucination. The system also maintains a document summary and session memory to avoid repeat API calls."
+
+WHAT MODEL:
+Q patterns: "what model are you", "which AI model", "what AI are you using", "are you ChatGPT", "are you Claude", "are you Gemini"
+A: "Navigator uses a model routing system that selects the best AI model for each question. Depending on your settings, this may include Groq (Llama 3.3 70B), Google Gemini, Anthropic Claude, or OpenAI GPT-4o. You can see which model answered each question by the colored badge next to the response, and change your model preferences in Navigator Settings."
+
+WHAT CAN YOU DO:
+Q patterns: "what can you do", "what features do you have", "how do I use this", "help"
+A: "Navigator can: search any document for keywords and jump to matching pages, answer questions about your document content, navigate to specific sheets by number, measure lengths areas and perimeters on calibrated drawings, detect sheet numbers automatically, and remember your conversation history. Open Navigator Settings (gear icon) to customize AI behavior and model preferences."
+
+FOOTPRINT TECHNOLOGIES:
+Q patterns: "what is footprint technologies", "tell me about footprint", "footprint company"
+A: "Footprint Technologies is the company behind Footprint Navigator. Contact: info@footprintrobotics.com."
+
+PART 3 — META ANSWER ROUTING:
+
+In the sendChat function, add META classification check after existing pre-classification checks but before keyword search:
+
+1. Call classifyMeta(question) — returns the matching META answer or null
+2. If match found:
+   - Skip keyword search entirely
+   - Skip all AI model calls entirely
+   - Return the answer immediately
+   - Display with "Navigator:" label in electric blue
+   - No AI badge (this is not an AI response, it's app knowledge)
+   - No disclaimer
+   - No "Go to Page" links
+   - No model indicator line
+3. If no match: proceed to normal keyword search and AI routing as before
+
+PART 4 — FUZZY META MATCHING:
+
+The classifyMeta function should use simple fuzzy matching not exact string matching:
+- Lowercase the question
+- Check if it contains any of the trigger phrases
+- If 2 or more trigger words from a category are present: return that category's answer
+- This handles variations like "how does this AI tool work exactly" matching "how does" + "AI" + "work"
+
+PART 5 — FALLBACK FOR AMBIGUOUS QUESTIONS:
+
+If a question contains AI/app related terms but also contains document terms (like sheet numbers, building types, material names), treat it as a DOCUMENT question not a META question and route normally.
+
+Example:
+"how does the AI find information in this document" → DOCUMENT question (contains "this document")
+"how does the AI work" → META question
+"what model answered my last question" → META question
+"what model is used for structural drawings" → DOCUMENT question (contains "structural drawings")
+
+Do not change: modelRouter, keyword search, Gemini/Groq calls, thumbnail panel, PDF viewer, settings panel, or any existing functionality.

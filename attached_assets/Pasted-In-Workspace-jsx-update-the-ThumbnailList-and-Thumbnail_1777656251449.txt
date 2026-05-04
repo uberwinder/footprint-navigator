@@ -1,0 +1,41 @@
+In Workspace.jsx, update the ThumbnailList and ThumbnailItem components (around lines 608–665) to show sheet numbers instead of page numbers under each thumbnail.
+
+Here is exactly what to add:
+
+1. SHEET NUMBER EXTRACTION: Add a function called extractSheetNumber that takes PDF.js textContent items and a viewport, and does the following:
+   - Focus on text items in the bottom-right 30% width and bottom 25% height of the page (remember PDF.js y=0 is at the BOTTOM, so bottom of page = low y values)
+   - Try these regex patterns in order against that region:
+     1. /\b([A-Z]{1,3}[-.]?\d{1,2}[-.]\d{2,3})\b/g  (e.g. A0.10, A1.01, P3.00)
+     2. /\b([ASMEPLCFI]\d{3})\b/g  (e.g. S101, M202)
+     3. /\b([A-Z]{1,3}-\d{3})\b/g  (e.g. A-101)
+   - If no match in bottom-right region, try the full page text with the same patterns
+   - Return the matched string or null if nothing found
+
+2. THUMBNAIL LABEL STATE: In ThumbnailItem, add state for:
+   - detectedSheet (string|null) — result of extractSheetNumber
+   - userLabel (string|null) — manual override by user
+   - isEditing (boolean) — whether the inline edit input is open
+
+3. SHEET NUMBER DETECTION: When each ThumbnailItem renders (after the thumbnail canvas is drawn), run getTextContent() on that page and call extractSheetNumber. Store result in detectedSheet state.
+
+4. DISPLAY LABEL LOGIC: Show labels in this priority order:
+   - userLabel if set (user manually edited)
+   - detectedSheet if found (auto-detected)
+   - "Page N" as fallback
+
+5. LABEL COLOR CODING:
+   - Blue (#a0c4ff): auto-detected sheet number
+   - White (#ffffff): user-edited label
+   - Gray (#888888): fallback page number
+   - Show a small orange dot (●) next to gray labels to indicate detection failed
+
+6. EDITABLE LABELS: 
+   - Clicking the label opens an inline text input
+   - Pre-fills with current display label
+   - Pressing Enter or clicking away saves as userLabel
+   - Pressing Escape cancels without saving
+   - The input should be styled to match the dark theme (dark background, blue border, white text)
+
+7. PERSISTENCE: Save and load user label overrides to localStorage using the key format: footprint-label-${filename}-${pageNum}. Load saved labels on mount.
+
+8. DO NOT change anything else in Workspace.jsx — only modify ThumbnailList and ThumbnailItem. Do not touch the PDF viewer, toolbar, search, or any other component.

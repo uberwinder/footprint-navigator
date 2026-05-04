@@ -1,0 +1,49 @@
+Add a settings panel to the Navigator chat. Here is exactly what to build:
+
+TRIGGER:
+Add a gear icon (⚙) button to the right side of the chat panel header, next to the existing × close button. Clicking it opens/closes the settings panel.
+
+SETTINGS PANEL LAYOUT:
+When open, the settings panel replaces the chat message area (slides in from the right or appears as an overlay inside the chat panel). It has a back arrow ← to return to the chat. Dark background (#111), white text, Montserrat font, electric blue accents.
+
+SETTING 1 — SYSTEM PROMPT EDITOR:
+Label: "AI Instructions"
+Description text: "Edit the instructions Navigator follows when answering questions."
+A textarea input pre-filled with the current system prompt
+Save button — saves to localStorage as "navigator-system-prompt"
+Reset button — restores the default system prompt
+The chat endpoint must read the system prompt from localStorage if set, otherwise use the default
+
+SETTING 2 — RESPONSE LENGTH:
+Label: "Response Length"
+Three radio buttons or a toggle:
+- Short (default) — "2-3 sentences max"
+- Medium — "up to 5 sentences"
+- Detailed — "as thorough as needed"
+Save to localStorage as "navigator-response-length"
+The Gemini system prompt must append the length instruction based on this setting
+
+SETTING 3 — KEYWORD MATCH THRESHOLD:
+Label: "AI Trigger Threshold"
+Description: "Number of keyword matches needed before skipping AI. Lower = more AI usage."
+A slider from 0 to 10, default value 3
+Shows current value next to slider
+Save to localStorage as "navigator-keyword-threshold"
+The chat routing logic must read this value instead of the hardcoded 3
+
+SETTING 4 — CLEAR CHAT HISTORY:
+Label: "Chat History"
+A single red button: "Clear Chat History"
+Clicking it shows a confirmation: "Are you sure? This cannot be undone."
+On confirm: clears localStorage chat history and resets the chat message area to empty
+On cancel: does nothing
+
+STYLING:
+- Settings panel same width and height as chat panel
+- Each setting separated by a subtle divider line
+- Labels in white bold, descriptions in gray (#888)
+- Save buttons in electric blue
+- Clear history button in red (#cc0000)
+- Gear icon highlights electric blue when settings panel is open
+
+Do not change anything outside the chat panel.

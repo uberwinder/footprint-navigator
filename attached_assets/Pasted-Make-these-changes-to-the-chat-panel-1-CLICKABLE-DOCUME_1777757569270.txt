@@ -1,0 +1,81 @@
+Make these changes to the chat panel:
+
+1. CLICKABLE DOCUMENT SUMMARY LINK:
+The "(Document Summary)" text that appears after AI responses is currently plain text. Make it a clickable link in electric blue with underline. When clicked:
+- Expand the Document Intelligence card if collapsed
+- Scroll chat to top so the card is visible
+- Briefly highlight the card with electric blue glow for 1 second
+
+2. SETTINGS/GEAR PANEL:
+Add a gear icon ⚙ button in the chat header where the red pen mark is in the screenshot (right side of header, left of the × close button). Clicking it opens a full settings panel that slides over the chat at the same size. The panel has a ← back arrow to return to chat.
+
+The settings panel has these sections:
+
+SECTION 1 — AI INSTRUCTIONS:
+- Label: "System Prompt"
+- Description: "Edit the instructions Navigator follows when answering questions."
+- Textarea pre-filled with current system prompt
+- Save button (electric blue) — saves to localStorage as "navigator-system-prompt"
+- Reset button — restores default system prompt
+
+SECTION 2 — RESPONSE SETTINGS:
+- Label: "Response Length"
+- Three radio buttons: Short (2-3 sentences) / Medium (up to 5 sentences) / Detailed (as thorough as needed)
+- Save to localStorage as "navigator-response-length"
+
+- Label: "AI Trigger Threshold"
+- Description: "Keyword matches needed before skipping AI. Lower = more AI usage."
+- Slider 0-10, default 3
+- Shows current value next to slider
+- Save to localStorage as "navigator-keyword-threshold"
+
+SECTION 3 — DOCUMENT SUMMARY:
+- Label: "Document Intelligence"
+- Shows the full current document summary in readable format:
+  - Project name, address, architect each labeled
+  - Building type (fix the garbled pill — parse building_type as a single clean string, not concatenated)
+  - Disciplines as blue pill badges
+  - Key facts as numbered list
+  - Sheet list as scrollable table: Sheet Number | Title | Page
+  - Each sheet row clickable — jumps viewer to that page
+  - Table max height 200px, scrollable
+- Refresh button ↺ to regenerate summary
+- Shows "Last analyzed: [date/time]" 
+
+SECTION 4 — ADDITIONAL CONTEXT FILES:
+- Label: "Project Files"
+- Description: "Upload additional documents like specs, RFIs, or submittals to give Navigator more context."
+- File upload area (drag and drop or click to browse)
+- Accepts PDF files only
+- Shows list of uploaded context files with × to remove each
+- These files get extracted and added to the document context sent to Gemini
+- Store file list in localStorage as "navigator-context-files-[filename]"
+
+SECTION 5 — MEMORY & HISTORY:
+- Label: "Session Memory"
+- Shows count of questions stored in memory this session: "X questions remembered"
+- Button: "Clear Session Memory" — clears memory array
+- Button: "Clear Chat History" (red) — clears localStorage chat history and resets chat
+- Both buttons show confirmation before executing
+
+SECTION 6 — USAGE STATS:
+- Label: "API Usage This Session"
+- Shows counters updated in real time:
+  - Gemini calls made: X
+  - Answered from memory: X
+  - Answered from keywords only: X
+  - Answered from document summary: X
+- Small note: "Free tier limit: ~1,000 requests/day"
+
+STYLING:
+- Settings panel same dark theme as chat (#111 background)
+- Section headers in electric blue, uppercase, small font
+- Sections separated by subtle dividers
+- All inputs match dark theme
+- Gear icon highlights electric blue when settings are open
+- Smooth slide transition when opening/closing
+
+3. DOCUMENT INTELLIGENCE CARD (in main chat view):
+Keep the collapsed card at top of chat but fix the building type display — parse it as a clean single string. When expanded show same readable format as Section 3 above but more compact.
+
+Do not change: thumbnail panel, PDF viewer, toolbar, navigation, or any existing functionality outside the chat panel.

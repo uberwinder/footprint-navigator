@@ -1,0 +1,109 @@
+Build a complete modelRouter system. Here is everything to implement:
+
+STEP 1 — INSTALL GROQ:
+Add groq-sdk to artifacts/footprint-pdf/server/package.json and install it.
+
+STEP 2 — CREATE artifacts/footprint-pdf/server/routes/modelRouter.ts:
+
+QUESTION CLASSIFIER:
+Create a classifyQuestion(question: string) function that returns "simple" | "moderate" | "complex"
+
+SIMPLE (use 8B):
+- Under 8 words
+- Contains: "who", "what page", "when", "where is", "find", "which"
+- Single entity lookups
+
+MODERATE (use 70B):
+- 8-15 words
+- Contains: "tell me about", "list all", "summarize", "describe", "what are", "explain"
+- Multi-item questions
+
+COMPLEX (use Gemini):
+- Over 15 words
+- Contains: "conflict", "compare", "difference", "between", "vs", "changed", "cross reference"
+- References multiple sheets or disciplines
+- Contains "and" connecting two different topics
+
+MODEL ROUTING FUNCTION:
+Export async function routeToModel(question, pageTexts, systemPrompt, responseLengthSuffix, summaryContext)
+Returns: { answer: string, model: string, complexity: string, latencyMs: number }
+
+Flow:
+1. Call classifyQuestion(question) → get complexity
+2. Based on complexity, select primary model:
+   - simple → Groq llama-3.1-8b-instant
+   - moderate → Groq llama-3.3-70b-versatile
+   - complex → Gemini 2.5 Flash (skip Groq entirely)
+3. Try primary model with timeout (5s for Groq, 8s for Gemini)
+4. If primary fails → fall back to next tier up
+5. If all fail → throw error
+
+CONTEXT BUILDING:
+- Max 3 pages for simple questions
+- Max 6 pages for moderate questions
+- Max 10 pages for complex questions
+- Always include summaryContext first
+- Format each page: "Page X (Sheet: Y, Title: Z): [text]"
+
+GROQ CALL:
+- Use process.env.GROQ_API_KEY
+- Messages: system prompt + user content (summary + pages + question)
+- If 429 rate limit: fall back to next tier
+- If timeout: fall back to next tier
+- If GROQ_API_KEY not set: skip to Gemini
+
+GEMINI CALL:
+- Use existing retry logic from chat.ts (3 attempts, 2s delay on 503/500)
+- Use process.env.GEMINI_API_KEY
+- Same context format
+
+CONSOLE LOGGING:
+Log every decision:
+[modelRouter] complexity: simple | model: groq-8b | success: true | 312ms
+[modelRouter] complexity: moderate | model: groq-70b | fallback: gemini | success: true | 6823ms
+
+On server startup log:
+[modelRouter] GROQ_API_KEY set: true/false
+[modelRouter] GEMINI_API_KEY set: true/false
+
+STEP 3 — UPDATE chat.ts:
+Replace direct Gemini call with:
+import { routeToModel } from './modelRouter'
+const result = await routeToModel(question, pageTexts, systemPrompt, responseLengthSuffix, summaryContext)
+Return: res.json({ answer: result.answer, model: result.model, complexity: result.complexity })
+
+STEP 4 — FRONTEND: MODEL INDICATOR IN CHAT:
+In Workspace.jsx, after every AI response show which model answered directly in the chat message. Format:
+
+Under each Navigator AI response show a small line:
+"Answered by: [model name] · [complexity] question · [latency]ms"
+
+Style: 11px, gray (#888), italic
+
+Model display names:
+- groq-8b → "Groq 8B (Fast)"
+- groq-70b → "Groq 70B"  
+- gemini → "Gemini 2.5 Flash"
+
+Complexity display:
+- simple → "simple"
+- moderate → "moderate"
+- complex → "complex"
+
+STEP 5 — AI BADGE COLORS BY MODEL:
+- groq-8b: green badge (#16a34a), tooltip "Groq Llama 3.1 8B"
+- groq-70b: electric blue badge (#007BFF), tooltip "Groq Llama 3.3 70B"
+- gemini: purple badge (#7c3aed), tooltip "Gemini 2.5 Flash"
+- keyword: gray badge, tooltip "Keyword Search"
+- memory: gray badge, tooltip "From Memory"
+
+STEP 6 — PROGRESSIVE LOADING:
+In Workspace.jsx chat loading state:
+- Immediately: "Navigator is thinking..."
+- After 4 seconds still waiting: "Still working on it..."
+- After 8 seconds still waiting: "Taking longer than usual..."
+- On response: replace with answer
+
+Use a ref-based timer that clears immediately when response arrives.
+
+Do not change: keyword search, pre-classification, session memory, document summary, settings panel, or anything outside the chat panel and server routes.

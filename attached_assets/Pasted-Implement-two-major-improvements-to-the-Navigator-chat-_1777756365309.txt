@@ -1,0 +1,58 @@
+Implement two major improvements to the Navigator chat system:
+
+PART 1 — DOCUMENT SUMMARY ON UPLOAD:
+
+When a document finishes uploading and text extraction is complete, automatically run a one-time Gemini analysis to generate a permanent document summary. This replaces sending raw pages to Gemini for every query.
+
+1. TRIGGER: After PDF text extraction completes and pageTexts are available, send a single API call to generate the summary. Show "Analyzing document..." in the chat banner while this runs.
+
+2. SUMMARY PROMPT — send this to Gemini with a sample of pages (first 3 pages + every 8th page up to 20 pages total):
+"Analyze this construction document and return ONLY a valid JSON object with no markdown, no code fences, just raw JSON:
+{
+  'project_name': string,
+  'address': string,
+  'architect': string,
+  'building_type': string,
+  'total_pages': number,
+  'disciplines': array of strings,
+  'sheet_list': array of {sheet_number, title, page},
+  'key_facts': array of strings (max 10 important notes about this project)
+}"
+
+3. STORAGE: Save the summary to localStorage keyed as "navigator-summary-[filename]". If a summary already exists for this filename, skip the analysis call entirely — never regenerate unless the user explicitly requests it.
+
+4. USAGE: Every Gemini query must now start with the summary as base context:
+"Document summary: [summary as readable text]. Now answer this question using the summary and the following specific page excerpts: [relevant pages]"
+
+For broad questions (tell me about, describe, overview, how many, list all): use summary only, no additional pages
+For specific lookups: use summary + top 3 keyword match pages
+This means most broad questions cost almost zero tokens.
+
+5. DISPLAY: After analysis completes, show a collapsible "Document Intelligence" card at the top of the chat panel showing:
+- Project name and address
+- Building type
+- Architect
+- Discipline list
+- A "View full summary" expandable section
+Style it dark with electric blue accents. Include a small refresh icon that lets the user regenerate the summary if needed.
+
+PART 2 — SESSION MEMORY:
+
+Add a session memory system that prevents repeat API calls within the same session.
+
+1. MEMORY STORE: Create an in-memory array (not localStorage) called sessionMemory storing:
+{ question, answer, timestamp, pageRefs }
+Cap at 50 entries per session.
+
+2. BEFORE EVERY QUERY: Check sessionMemory for a similar question using simple string similarity:
+- Exact match: return cached answer instantly, no API call, show "(from memory)" in small gray text
+- High similarity (over 70% word overlap): return cached answer with note "Similar question answered above"
+- No match: proceed to keyword search and Gemini as normal
+
+3. AFTER EVERY GEMINI RESPONSE: Store the question and answer in sessionMemory automatically.
+
+4. MEMORY INDICATOR: When a response comes from memory, show a small gray "(memory)" badge instead of the blue "AI" badge. No disclaimer needed for memory responses.
+
+5. CLEAR MEMORY: The existing "Clear Chat History" button in settings should also clear sessionMemory.
+
+Do not change: thumbnail panel, PDF viewer, toolbar, navigation, or any existing keyword search logic.

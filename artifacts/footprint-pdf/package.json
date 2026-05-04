@@ -1,0 +1,40 @@
+{
+  "name": "@workspace/footprint-pdf",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,web -c blue,green \"pnpm run dev:server\" \"pnpm run dev:web\"",
+    "dev:server": "EXPRESS_PORT=4001 tsx watch server/index.ts",
+    "dev:web": "vite",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:web": "vite build",
+    "build": "pnpm run build:server && pnpm run build:web",
+    "start": "node --enable-source-maps dist/server/index.js",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2",
+    "express": "^5",
+    "groq-sdk": "^1.1.2",
+    "multer": "^1.4.5-lts.1",
+    "openai": "^6.35.0",
+    "pdf-parse": "^1.1.1",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^1.4.12",
+    "@types/node": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "concurrently": "^9.1.2",
+    "pdfjs-dist": "^4.10.38",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tsx": "catalog:",
+    "vite": "catalog:"
+  }
+}

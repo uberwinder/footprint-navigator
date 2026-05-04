@@ -1,0 +1,35 @@
+Make two improvements to the chat panel:
+
+PART 1 — PRE-CLASSIFICATION LAYER:
+Add a pre-classification check BEFORE keyword search and Gemini in the chat routing logic. Intercept these question types and answer them directly from app metadata without calling Gemini or keyword search:
+
+1. PAGE COUNT QUESTIONS:
+Detect if question contains: "how many pages", "page count", "total pages", "how long is", "how big is"
+Answer directly: "This document has [X] pages." using actual pdfDoc.numPages value
+Never send to Gemini.
+
+2. CURRENT PAGE QUESTIONS:
+Detect: "what page am I on", "current page", "where am I"
+Answer directly: "You are on page [X] of [Y]."
+
+3. FILE INFO QUESTIONS:
+Detect: "what file is this", "what document is this", "what is the filename"
+Answer directly using the actual filename.
+
+4. NAVIGATION COMMANDS:
+Detect: "go to page [N]", "jump to page [N]", "show page [N]"
+Execute the jump directly and respond: "Navigating to page [N]."
+
+These are factual metadata questions the app already knows. Gemini should never handle them. Add console.log showing which pre-classification bucket fired for each question.
+
+PART 2 — AI DISCLAIMERS:
+Add two disclaimer elements to the chat panel:
+
+1. ONE-TIME SESSION BANNER:
+Show a dismissible yellow/amber banner at the top of the chat message area the first time the chat opens each session. Text: "Navigator AI answers are generated from extracted document text and may contain errors. Always verify critical information against the original drawings." Include an × to dismiss it. Once dismissed, do not show again for that session. Store dismissed state in sessionStorage not localStorage so it reappears in new sessions.
+
+2. INLINE MICRO-DISCLAIMER:
+Under every AI-generated response (ones with the AI badge), show a single line of small gray text (#888, 11px): "AI-generated · Always verify against source documents"
+This should not appear on keyword-only results, only on Gemini responses.
+
+Do not change anything else.

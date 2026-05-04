@@ -1,0 +1,116 @@
+Wire up all menu items in Workspace.jsx that connect to already-built features. Here is exactly what each item should do:
+
+FILE MENU:
+- "Open Document" → trigger the hidden file input to open a new document
+- "Close Document" → reset app state back to the upload screen, clear current PDF, clear chat history from view but keep localStorage
+- "Save Project" → export current session as a JSON file download containing: filename, page count, extracted page texts, chat history, sheet labels from localStorage, document summary from localStorage. Filename format: "footprint-[documentname]-[date].json"
+- "Save Project As" → same as Save Project but prompt user for a custom filename first using a simple modal with a text input and Save button
+- "Print" → call window.print()
+- "Export Chat History" → generate plain text file of chat messages and trigger browser download. Format: "User: [text]" and "Navigator: [text]" with line breaks between messages
+- "Recent Documents" → toast: "Recent Documents — Coming Soon"
+
+EDIT MENU:
+- "Undo" → trigger Previous View (Alt+Left) — also wire Ctrl+Z
+- "Redo" → trigger Next View (Alt+Right) — also wire Ctrl+Y
+- "Find" → open Search panel in left rail
+- "Select All" → select all text on page if Text Select tool is active
+- "Cut" → toast: "Cut — Coming Soon"
+- "Copy" → toast: "Copy — Coming Soon"
+- "Paste" → toast: "Paste — Coming Soon"
+- "Preferences" → open Navigator Settings panel
+
+VIEW MENU:
+- "Single Page" → set viewMode to single (Ctrl+1)
+- "Split Vertical" → set viewMode to split-v (Ctrl+2)
+- "Split Horizontal" → set viewMode to split-h (Ctrl+H)
+- "Zoom In" → increase zoom by 10%
+- "Zoom Out" → decrease zoom by 10%
+- "Fit Page" → call calcFitPageScale
+- "Fit Width" → call calcFitWidthScale
+- "Actual Size" → set scale to 1.0
+- "Thumbnails Panel" → toggle thumbnails panel
+- "Search Panel" → toggle search panel
+- "Navigator Chat" → toggle chat panel
+- "Full Screen" → toggle document.documentElement.requestFullscreen() / document.exitFullscreen()
+- Show checkmark next to active view mode and open panels
+
+DOCUMENT MENU:
+- "Document Properties" → show modal with: filename, page count, file size, page dimensions, scale status
+- "OCR This Document" → trigger OCR on current document
+- "Re-index Document" → clear page text index and re-extract from all pages, show "Re-indexing..." status
+- "Rotate Pages" → toast: "Rotate Pages — Coming Soon"
+- "Extract Pages" → toast: "Extract Pages — Coming Soon"
+- "Scale Calibration" → toast: "Scale Calibration — Coming Soon"
+- "Page Setup" → toast: "Page Setup — Coming Soon"
+
+TOOLS MENU:
+- "Select" → set activeTool to select (V) with checkmark
+- "Pan" → set activeTool to pan (Shift+V) with checkmark
+- "Select Text" → set activeTool to text (Shift+T) with checkmark
+- "Zoom" → set activeTool to zoom (Z) with checkmark
+- "Measure Length" → toast: "Measurement Tools — Coming Soon"
+- "Measure Area" → toast: "Measurement Tools — Coming Soon"
+- "Count" → toast: "Count Tool — Coming Soon"
+- "Annotate" → toast: "Markup Tools — Coming Soon"
+- "Highlight" → toast: "Highlight Tool — Coming Soon"
+- "Add Note" → toast: "Notes — Coming Soon"
+
+WINDOW MENU:
+- "Thumbnails" → toggle thumbnails panel with checkmark when open
+- "Search" → toggle search panel with checkmark when open
+- "Navigator Chat" → toggle chat panel with checkmark when open
+- "Bookmarks" → toast: "Bookmarks — Coming Soon"
+- "Layers" → toast: "Layers — Coming Soon"
+- "Reset Workspace" → close all panels, set viewMode to single, zoom to fit width, set activeTool to pan
+
+HELP MENU:
+- "Keyboard Shortcuts" → show modal with clean table of all shortcuts:
+  V = Select
+  Shift+V = Pan
+  Shift+T = Select Text
+  Z = Zoom
+  Ctrl+1 = Single Page
+  Ctrl+2 = Split Vertical
+  Ctrl+H = Split Horizontal
+  Ctrl+Home = First Page
+  Ctrl+End = Last Page
+  Ctrl+Left = Previous Page
+  Ctrl+Right = Next Page
+  Alt+Left = Previous View
+  Alt+Right = Next View
+  Ctrl+Z = Undo View
+  Ctrl+Y = Redo View
+  Ctrl+F = Find/Search
+  F11 = Full Screen
+  Escape = Close Modal
+- "About Footprint Navigator" → modal with Footprint logo, version "1.0.0 Beta", tagline "Tread boldly.", close button
+- "Send Feedback" → open mailto:info@footprintrobotics.com
+- "Check for Updates" → toast: "You are on the latest version (1.0.0 Beta)"
+
+ADDITIONAL KEYBOARD SHORTCUTS:
+- Ctrl+Z → Previous View
+- Ctrl+Y → Next View
+- Ctrl+F → open Search panel
+- F11 → toggle Full Screen
+- Escape → close any open modal
+
+TOAST STYLING:
+- Position: fixed bottom right, 20px margin
+- Background: #1a1a1a
+- Border: 1px solid #007BFF
+- Text: white, Montserrat, 13px
+- Padding: 10px 16px
+- Border radius: 6px
+- Fade in 150ms, stay 2.5s, fade out 150ms
+- Stack multiple toasts vertically
+- Z-index: 99999
+
+SAVE PROJECT MODAL (for Save Project As):
+- Dark overlay background
+- Small centered modal #1a1a1a
+- Title: "Save Project As"
+- Text input pre-filled with document filename
+- Save button (electric blue) and Cancel button
+- Press Enter to confirm
+
+Do not change: thumbnail rendering, chat logic, modelRouter, document summary, canvas rendering, or any existing keyboard shortcuts already working.

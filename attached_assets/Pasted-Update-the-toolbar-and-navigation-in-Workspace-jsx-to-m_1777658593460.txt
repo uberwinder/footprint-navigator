@@ -1,0 +1,77 @@
+Update the toolbar and navigation in Workspace.jsx to match Bluebeam's layout and controls. Here is exactly what to build:
+
+BOTTOM TOOLBAR — replace the current bottom tool bar with a proper Bluebeam-style toolbar at the TOP (secondary toolbar area). Relocate and reorganize as follows:
+
+LEFT SIDE OF TOOLBAR:
+1. View mode buttons (icon buttons, grouped):
+   - Single Page view (Ctrl+1)
+   - Scrolling/Continuous view (default, already active)
+   - Split Vertical (Ctrl+2)
+   - Split Horizontal (Ctrl+H)
+
+2. Mouse tool buttons (icon buttons, grouped — these move FROM the bottom bar TO here):
+   - Grabber/Pan tool — icon: hand — shortcut: Shift+V
+   - Select/Arrow tool — icon: arrow — shortcut: V
+   - Select Text tool — icon: text cursor — shortcut: Shift+T
+   - Zoom tool — icon: magnifying glass — shortcut: Z
+
+CENTER OF TOOLBAR:
+3. Page navigation controls (in this exact order):
+   - First Page button — icon: |◄ — shortcut: Ctrl+Home
+   - Previous Page button — icon: ◄ — shortcut: Ctrl+Left Arrow
+   - Page input: shows "24 of 127" — user can click the number, type a new page, press Enter to jump
+   - Next Page button — icon: ► — shortcut: Ctrl+Right Arrow
+   - Last Page button — icon: ►| — shortcut: Ctrl+End
+
+RIGHT SIDE OF TOOLBAR:
+4. View history navigation:
+   - Previous View button — icon: ← — shortcut: Alt+Left Arrow — goes back to last view state (page + zoom + pan position)
+   - Next View button — icon: → — shortcut: Alt+Right Arrow — goes forward in view history
+
+5. Zoom controls (already exist, keep them):
+   - Zoom out
+   - Zoom percentage display and input
+   - Zoom in
+   - Fit Page
+   - Fit Width
+
+6. Document info (right edge):
+   - Page dimensions (e.g. "42.00 x 30.00 in")
+   - Scale status ("Scale Not Set")
+
+REMOVE the old 4-button bottom tool bar (Select, Pan, Text, Zoom) since those tools are now in the top toolbar.
+
+KEYBOARD SHORTCUTS — add all of these:
+- Ctrl+1: Single page view
+- Ctrl+2: Split vertical view
+- Ctrl+H: Split horizontal view
+- Ctrl+Home: First page
+- Ctrl+End: Last page
+- Ctrl+Left Arrow: Previous page
+- Ctrl+Right Arrow: Next page
+- Alt+Left Arrow: Previous view (restore last saved view state — page + zoom + pan offset)
+- Alt+Right Arrow: Next view (move forward in view history)
+- V: Select tool
+- Shift+V: Pan/Grabber tool
+- Shift+T: Select Text tool
+- Z: Zoom tool
+
+VIEW HISTORY LOGIC:
+- Maintain a viewHistory array of states: { page, scale, panX, panY }
+- Push current state to history whenever page changes, zoom changes, or pan stops (on mouseup)
+- Cap history at 50 states
+- Previous View (Alt+Left) pops back one state and restores it
+- Next View (Alt+Right) moves forward one state
+- Do not push to history when navigating via Previous/Next View buttons (avoid infinite loops)
+
+SPLIT VIEW:
+- Split Vertical: show two PDF canvases side by side, each with independent page controls
+- Split Horizontal: show two PDF canvases stacked, each with independent page controls
+- Single Page (Ctrl+1): return to single canvas view
+- In split view, show a small independent page nav under each panel
+
+STATUS BAR (bottom of screen):
+- Keep the existing status bar
+- Update it to show: Page X of Y · Zoom% · Tool name · Filename · Scale Not Set · Page dimensions
+
+Style everything consistently: dark background (#1a1a1a), electric blue (#007BFF) for active states, white text, Montserrat font. Icon buttons should have subtle hover states.

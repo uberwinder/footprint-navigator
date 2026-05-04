@@ -1,0 +1,66 @@
+Restore and rebuild the bottom toolbar in Workspace.jsx to match this exact Bluebeam layout, left to right:
+
+LEFT GROUP (view mode icons):
+- Single page view button (Ctrl+1)
+- Split vertical view button (Ctrl+2)  
+- Split horizontal view button (Ctrl+H)
+- Continuous/scrolling pages button (default active state)
+- One more view icon placeholder
+
+CENTER GROUP (tools + navigation):
+- Hand/grabber tool button (Shift+V)
+- Arrow/select tool button (V)
+- Text select tool button (Shift+T)
+- Zoom tool button (Z)
+- Vertical separator
+- First page button "|◄" (Ctrl+Home)
+- Previous page button "◄" (Ctrl+Left)
+- Page input showing "X of Y" — clickable, user can type page number and press Enter to jump
+- Next page button "►" (Ctrl+Right)
+- Last page button "►|" (Ctrl+End)
+- Vertical separator
+- Previous View button "←" (Alt+Left) — restores last view state
+- Next View button "→" (Alt+Right) — moves forward in view history
+
+RIGHT GROUP (document info):
+- Page dimensions display — auto-detected from PDF page size, format "42.00 x 30.00 in"
+- "Scale Not Set" text
+
+STYLING:
+- Dark background (#1a1a1a)
+- White icons and text
+- Electric blue (#007BFF) highlight for active tool
+- Subtle hover states on all buttons
+- Fixed to bottom of workspace, full width
+- Height: 36px
+- Montserrat font
+
+KEYBOARD SHORTCUTS — wire all of these:
+- Ctrl+1: Single page view
+- Ctrl+2: Split vertical
+- Ctrl+H: Split horizontal
+- Ctrl+Home: First page
+- Ctrl+End: Last page
+- Ctrl+Left: Previous page
+- Ctrl+Right: Next page
+- Alt+Left: Previous view
+- Alt+Right: Next view
+- V: Select tool
+- Shift+V: Pan tool
+- Shift+T: Text select tool
+- Z: Zoom tool
+
+VIEW HISTORY:
+- Maintain viewHistory array of {page, scale, panX, panY}
+- Push state on page change, zoom change, pan end
+- Cap at 50 states
+- Alt+Left restores previous state
+- Alt+Right restores next state
+- Do not push to history when navigating via Previous/Next View
+
+PAGE DIMENSIONS:
+- Read the actual PDF page dimensions from the loaded pdfDoc
+- Display in inches format "W x H in"
+- Auto-detect on document load
+
+Do not change anything else in the workspace — only restore and rebuild the bottom toolbar.

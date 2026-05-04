@@ -1,0 +1,104 @@
+Make the following changes to Footprint Navigator:
+
+1. REMOVE FOOTER CREDIT: Remove the text "Footprint Navigator · Express + React + PDF.js" from the bottom of the app completely.
+
+2. PREVIEW MODE LAYOUT: When a document is uploaded, show a "Preview" screen (not "Viewer"). This is a lightweight preview before the user enters the full workspace. It should:
+   - Show the document centered on a dark gray canvas
+   - Fit the entire document width AND height on screen at load — 100% zoom should mean "fit to screen", not actual pixel size
+   - Have a clean bottom bar with a prominent electric blue button that says "Use Document" — clicking this transitions to the full workspace
+   - Have a subtle top bar showing the filename and page count only
+   - No sidebar, no chat, no search yet — just the document preview and the "Use Document" button
+
+3. FULL WORKSPACE (after clicking "Use Document"): Build a Bluebeam Revu-inspired full document workspace with:
+
+   LAYOUT:
+   - Top menu bar with menus: File, Edit, View, Document, Tools, Window, Help
+   - Secondary icon toolbar below the menu bar
+   - Document tab bar showing the open file name with a close button
+   - Left vertical tool rail with icons
+   - Left collapsible navigation panel (default: Thumbnails)
+   - Center document canvas (dark gray workspace, white document sheet)
+   - Status bar at the very bottom
+
+   TOP MENU BAR MENUS (dropdowns):
+   - File: Open, Close, Save, Save As, Export, Print
+   - Edit: Undo, Redo, Cut, Copy, Paste, Select All
+   - View: Fit Page, Fit Width, Actual Size, Zoom In, Zoom Out, Single Page, Continuous, Full Screen
+   - Document: OCR, Reduce File Size, Compare Documents, Page Setup
+   - Tools: Select, Pan, Zoom, Text, Highlight, Search, Measure
+   - Window: Thumbnails, Bookmarks, Layers, Search, Markups List, Properties
+   - Help: Keyboard Shortcuts, About Footprint Navigator
+
+   SECONDARY TOOLBAR (icon buttons):
+   - Open file
+   - Save
+   - Undo / Redo
+   - Separator
+   - Fit Page
+   - Fit Width
+   - Zoom percentage display and input
+   - Separator
+   - Previous page / Next page
+   - Page number input showing current page of total
+   - Separator
+   - Search box (inline, expandable)
+
+   LEFT VERTICAL TOOL RAIL (icon buttons, tooltips on hover):
+   - Thumbnails
+   - Bookmarks
+   - Layers
+   - Search
+   - Markups List
+   - Tool Chest
+   - Measurements
+   - Properties
+
+   THUMBNAILS PANEL (default open):
+   - Show page thumbnails from the real uploaded PDF using PDF.js
+   - Each thumbnail shows page number and any detected sheet number/title below it
+   - Clicking a thumbnail jumps the main canvas to that page
+   - Selected thumbnail is highlighted in electric blue
+
+   CENTER DOCUMENT CANVAS:
+   - Render the actual uploaded PDF using PDF.js
+   - Dark gray background workspace
+   - White document page centered
+   - Mouse wheel zoom in/out
+   - Default zoom: Fit Width on load
+   - Thin electric blue border around active page
+
+   BOTTOM MOUSE/TOOL SELECTOR BAR:
+   - Fixed bar at the bottom of the canvas area (above the status bar)
+   - Shows 4 selectable tool buttons styled like Bluebeam's bottom tool switcher:
+     1. Arrow/Select tool — shortcut V — tooltip "Select (V)"
+     2. Hand/Pan tool — shortcut Shift+V — tooltip "Pan (Shift+V)"  
+     3. Text Select tool — shortcut Shift+T — tooltip "Select Text (Shift+T)"
+     4. Zoom tool — shortcut Z — tooltip "Zoom (Z)"
+   - Active tool is highlighted in electric blue
+   - Keyboard shortcuts activate the correct tool
+   - Hand tool: click and drag pans the document in ALL directions (left, right, up, down, diagonal)
+   - Select tool: standard pointer
+   - Text Select tool: text cursor, allows highlighting and copying text
+   - Zoom tool: click to zoom in, right-click or Alt+click to zoom out
+
+   STATUS BAR (very bottom of app):
+   - Current page / total pages
+   - Zoom percentage
+   - Current active tool name
+   - Document name
+   - Scale status (shows "Scale Not Set" initially)
+
+   SEARCH PANEL (accessible from tool rail):
+   - Text search input
+   - Search current document only for now
+   - Results list showing page number, sheet number if detected, and text snippet
+   - Each result has a "Go to Page" button that jumps the canvas to that page
+   - Matching text highlighted in yellow on the page
+
+4. NAMING: Make sure all references say "Footprint Navigator" not "Footprint PDF". Any button or label that previously said "PDF" should say "Document". "Choose PDF" becomes "Choose Document". "New file" stays as is.
+
+5. HAND GRAB FIX: The pan tool must support dragging in all directions including diagonal. Fix any constraint that limits panning to horizontal only.
+
+6. OCR FALLBACK: After a document loads, check if average extracted text per page is under 50 characters. If so, show a banner: "Scanned document detected — running OCR..." and run Tesseract.js OCR automatically in the background.
+
+Style everything with: black background, dark gray panels (#1a1a1a), electric blue accents (#007BFF), white text, Montserrat font. Professional, clean, construction-industry appropriate.
