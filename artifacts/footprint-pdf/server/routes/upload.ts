@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 // @ts-expect-error pdf-parse has no types and the index file probes a sample PDF at import time
 import pdfParse from "pdf-parse/lib/pdf-parse.js";
@@ -7,7 +7,7 @@ const router: IRouter = Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === "application/pdf") {
       cb(null, true);
@@ -196,5 +196,25 @@ router.post(
     }
   },
 );
+
+// Multer error handler — must be registered after the route so Express sees it
+// as a 4-argument error middleware. Without this, multer errors (file too large,
+// wrong mime type) drop the connection instead of returning JSON, causing the
+// client to see "Network error" instead of a proper error message.
+router.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    const message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? "File too large — maximum upload size is 100 MB"
+        : `Upload error: ${err.message}`;
+    res.status(413).json({ error: message });
+    return;
+  }
+  if (err instanceof Error) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  res.status(500).json({ error: "Unknown upload error" });
+});
 
 export default router;
