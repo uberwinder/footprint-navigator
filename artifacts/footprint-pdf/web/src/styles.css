@@ -1847,15 +1847,21 @@ button { font-family: inherit; }
   border-radius: 7px;
   padding: 8px 18px;
   cursor: pointer;
-  border: 1px solid transparent;
+  background: transparent;
+  color: #007BFF;
+  border: 1.5px solid #007BFF;
   transition: background .15s, border-color .15s, color .15s, opacity .15s;
   white-space: nowrap;
 }
+.wob-btn:hover:not(:disabled) { background: #007BFF; color: #fff; }
+.wob-btn:active:not(:disabled) { background: #0062cc; border-color: #0062cc; color: #fff; }
 .wob-btn:disabled { opacity: .4; cursor: default; }
-.wob-btn--primary { background: #007BFF; color: #fff; border-color: #007BFF; }
-.wob-btn--primary:hover:not(:disabled) { background: #0062cc; border-color: #0062cc; }
-.wob-btn--ghost   { background: transparent; color: #888; border-color: #333; }
-.wob-btn--ghost:hover { border-color: #555; color: #ccc; }
+.wob-btn--primary { background: transparent; color: #007BFF; border-color: #007BFF; }
+.wob-btn--primary:hover:not(:disabled) { background: #007BFF; color: #fff; border-color: #007BFF; }
+.wob-btn--primary:active:not(:disabled) { background: #0062cc; border-color: #0062cc; }
+.wob-btn--ghost { background: transparent; color: #007BFF; border-color: #007BFF; }
+.wob-btn--ghost:hover:not(:disabled) { background: #007BFF; color: #fff; border-color: #007BFF; }
+.wob-btn--ghost:active:not(:disabled) { background: #0062cc; border-color: #0062cc; }
 .wob-btn--send { padding: 8px 13px; flex-shrink: 0; }
 .wob-input {
   flex: 1;
