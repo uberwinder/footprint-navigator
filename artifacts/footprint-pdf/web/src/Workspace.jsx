@@ -656,6 +656,16 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     catch { return null; }
   });
   const [calibDistError, setCalibDistError] = useState("");
+  // Per-page scale map — tracks calibration per page for the session
+  const [pageScaleMap, setPageScaleMap] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(`navigator-scale-${meta.filename}`) || "null");
+      return saved ? { 1: saved } : {};
+    } catch { return {}; }
+  });
+  const pageScaleMapRef        = useRef({});
+  const pendingMeasureToolRef  = useRef(null);
+  const activateMeasureToolRef = useRef(null);
   const toastIdRef     = useRef(0);
   const textLayerRef   = useRef(null);
   const calibCanvasRef     = useRef(null);
@@ -997,7 +1007,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
       // Measurement shortcuts (Shift+Alt+key)
       if (!inInput && shift && alt) {
-        const activate = (tool) => { e.preventDefault(); setCurrentTool(tool); setMeasureTool(tool); setMeasurePoints([]); };
+        const activate = (tool) => { e.preventDefault(); activateMeasureToolRef.current?.(tool); };
         if (k === "l" || k === "L") { activate("length");     return; }
         if (k === "q" || k === "Q") { activate("polylength"); return; }
         if (k === "a" || k === "A") { activate("area");       return; }
@@ -1190,11 +1200,23 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     const data = { pixelsPerUnit, unit: calibUnit, pixelDistance: pixelDist, realDistance: dist, calibratedAt: new Date().toISOString() };
     try { localStorage.setItem(`navigator-scale-${meta.filename}`, JSON.stringify(data)); } catch {}
     setCalibSaved(data);
+    // Save to per-page map so this page is marked as calibrated
+    const pn = pageNumRef.current;
+    setPageScaleMap((prev) => ({ ...prev, [pn]: data }));
     showToast("Scale calibrated successfully");
     setCalibMode(false);
     setCalibPts([]);
     setModal(null);
-    setCurrentTool(prevToolRef.current);
+    // If triggered from scale gate, activate the pending tool; otherwise restore previous tool
+    const pending = pendingMeasureToolRef.current;
+    if (pending) {
+      pendingMeasureToolRef.current = null;
+      setCurrentTool(pending);
+      setMeasureTool(pending);
+      setMeasurePoints([]);
+    } else {
+      setCurrentTool(prevToolRef.current);
+    }
   }, [calibDist, calibUnit, meta.filename]); // showToast is stable ([] deps)
 
   const handleCalibClick = useCallback((e) => {
@@ -1213,6 +1235,32 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       return next;
     });
   }, []);
+
+  // ── Scale-gate activation helper ───────────────────────────────────────────
+
+  // Keep pageScaleMapRef in sync so callbacks below can read it without stale closures
+  useEffect(() => { pageScaleMapRef.current = pageScaleMap; }, [pageScaleMap]);
+
+  // Sync calibSaved with the per-page scale whenever the page changes
+  useEffect(() => {
+    setCalibSaved(pageScaleMap[pageNum] ?? null);
+  }, [pageNum, pageScaleMap]);
+
+  // Single gated activation for all measurement tools.
+  // count never needs a scale; all others require one to be set first.
+  const activateMeasureTool = useCallback((tool) => {
+    const needsScale = tool !== "count";
+    if (needsScale && !pageScaleMapRef.current[pageNumRef.current]) {
+      setModal({ type: "scaleGate", pendingTool: tool });
+      return;
+    }
+    setCurrentTool(tool);
+    setMeasureTool(tool);
+    setMeasurePoints([]);
+  }, []); // intentionally stable — reads state through refs
+
+  // Keep the ref in sync so keyboard shortcuts can call without stale closure
+  useEffect(() => { activateMeasureToolRef.current = activateMeasureTool; }, [activateMeasureTool]);
 
   // ── Toast helper ───────────────────────────────────────────────────────────
 
@@ -1307,12 +1355,12 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     else if (action === "tool-pan")      setCurrentTool("pan");
     else if (action === "tool-text")     setCurrentTool("text");
     else if (action === "tool-zoom")     setCurrentTool("zoom");
-    else if (action === "tool-length")     { setCurrentTool("length");     setMeasureTool("length");     setMeasurePoints([]); }
-    else if (action === "tool-polylength") { setCurrentTool("polylength"); setMeasureTool("polylength"); setMeasurePoints([]); }
-    else if (action === "tool-area")       { setCurrentTool("area");       setMeasureTool("area");       setMeasurePoints([]); }
-    else if (action === "tool-perimeter")  { setCurrentTool("perimeter");  setMeasureTool("perimeter");  setMeasurePoints([]); }
-    else if (action === "tool-angle")      { setCurrentTool("angle");      setMeasureTool("angle");      setMeasurePoints([]); }
-    else if (action === "tool-count")      { setCurrentTool("count");      setMeasureTool("count");      setMeasurePoints([]); }
+    else if (action === "tool-length")     activateMeasureTool("length");
+    else if (action === "tool-polylength") activateMeasureTool("polylength");
+    else if (action === "tool-area")       activateMeasureTool("area");
+    else if (action === "tool-perimeter")  activateMeasureTool("perimeter");
+    else if (action === "tool-angle")      activateMeasureTool("angle");
+    else if (action === "tool-count")      activateMeasureTool("count");
     else if (action === "cs-diameter")     showToast("Diameter — Coming Soon");
     else if (action === "cs-centerradius") showToast("Center Radius — Coming Soon");
     else if (action === "cs-3ptradius")    showToast("3-Point Radius — Coming Soon");
@@ -1350,6 +1398,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     numPages, pageTexts, chatMessages, docSummary,
     calcFitWidthScale, calcFitPageScale, onNewFile,
     goBackView, goForwardView, showToast, saveProjectJson, exportChatHistory,
+    activateMeasureTool,
   ]);
 
   const jumpToPage = useCallback((n) => {
@@ -2588,7 +2637,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
               key={id}
               className={`ws-btbtn ws-btbtn--measure ${currentTool === id ? "ws-btbtn--active" : ""}`}
               title={title}
-              onClick={() => { setCurrentTool(id); setMeasureTool(id); setMeasurePoints([]); }}
+              onClick={() => activateMeasureTool(id)}
             >
               {label}
             </button>
@@ -2664,10 +2713,8 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         <span className="ws-stat-sep">|</span>
         <span className="ws-stat-trim" title={meta.filename}>{meta.filename}</span>
         <span className="ws-stat-sep">|</span>
-        <span>
-          {calibSaved
-            ? `1 ${calibSaved.unit} = ${calibSaved.pixelsPerUnit.toFixed(1)}px`
-            : "Scale Not Set"}
+        <span style={{ color: calibSaved ? "#4caf50" : "#ff9800", fontWeight: 600 }}>
+          {calibSaved ? `Scale ✓ (${calibSaved.unit})` : "⚠ Scale Not Set"}
         </span>
         {pageDims && <><span className="ws-stat-sep">|</span><span>{pageDims}</span></>}
         {snapEnabled && snapStatus && (
@@ -2847,6 +2894,35 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                 Set Scale
               </button>
               <button className="ws-settings-reset" onClick={cancelCalib}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Scale Gate Modal ── */}
+      {modal?.type === "scaleGate" && (
+        <div className="ws-modal-overlay" onClick={() => setModal(null)}>
+          <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ws-modal-header">
+              <span className="ws-modal-title">Set Page Scale Before Measuring</span>
+              <button className="ws-modal-close" onClick={() => setModal(null)}>×</button>
+            </div>
+            <div className="ws-modal-body">
+              <p style={{ margin: 0, lineHeight: 1.6 }}>
+                You must set a scale before measurements can be calculated accurately.
+                Would you like to set the scale now?
+              </p>
+            </div>
+            <div className="ws-modal-footer">
+              <button className="ws-settings-reset" onClick={() => setModal(null)}>Cancel</button>
+              <button className="ws-settings-save" onClick={() => {
+                pendingMeasureToolRef.current = modal.pendingTool;
+                prevToolRef.current = currentTool;
+                setModal(null);
+                setCalibMode(true);
+                setCalibPts([]);
+                setCalibDist("");
+              }}>Set Scale</button>
             </div>
           </div>
         </div>
