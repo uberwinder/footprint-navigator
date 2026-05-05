@@ -131,63 +131,17 @@ router.post(
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const pageTexts: string[] = [];
-      const pageTitles: string[] = [];
-      const pageSheets: string[] = [];
-
+      // Fast metadata-only parse — no text extraction (client handles that).
+      // Using a no-op pagerender avoids calling getTextContent() on every page,
+      // which is the expensive step. numpages and info are still populated.
       const result: PdfParseResult = await pdfParse(req.file.buffer, {
-        pagerender: async (pageData: {
-          pageNumber: number;
-          getViewport: (opts: { scale: number }) => { width: number; height: number };
-          getTextContent: (opts: {
-            normalizeWhitespace: boolean;
-            disableCombineTextItems: boolean;
-          }) => Promise<{ items: TextItem[] }>;
-        }) => {
-          // Get page dimensions for position-based extraction
-          const viewport = pageData.getViewport({ scale: 1 });
-          const pageW = viewport.width;
-          const pageH = viewport.height;
-
-          // Use disableCombineTextItems:true to preserve per-item transforms
-          const textContent = await pageData.getTextContent({
-            normalizeWhitespace: true,
-            disableCombineTextItems: true,
-          });
-
-          const items = textContent.items as TextItem[];
-          const text = items
-            .map((item) => item.str)
-            .join(" ")
-            .replace(/\s+/g, " ")
-            .trim();
-
-          const { title, sheet } = extractPageMeta(items, pageW, pageH);
-
-          const idx = pageData.pageNumber - 1;
-          pageTexts[idx] = text;
-          pageTitles[idx] = title;
-          pageSheets[idx] = sheet;
-
-          return text;
-        },
+        pagerender: async () => "",
       });
-
-      // Fill any holes
-      for (let i = 0; i < result.numpages; i += 1) {
-        if (typeof pageTexts[i] !== "string") pageTexts[i] = "";
-        if (typeof pageTitles[i] !== "string") pageTitles[i] = "";
-        if (typeof pageSheets[i] !== "string") pageSheets[i] = "";
-      }
 
       return res.json({
         filename: req.file.originalname,
         size: req.file.size,
         pages: result.numpages,
-        text: result.text,
-        pageTexts,
-        pageTitles,
-        pageSheets,
         info: result.info ?? null,
       });
     } catch (err) {

@@ -110,36 +110,52 @@ export default function App() {
           try { const d = JSON.parse(xhr.responseText); if (d.error) msg = d.error; } catch {}
           throw new Error(msg);
         }
-        const data  = JSON.parse(xhr.responseText);
-        const texts  = Array.isArray(data.pageTexts)  ? data.pageTexts  : [];
-        const titles = Array.isArray(data.pageTitles) ? data.pageTitles : [];
-        const sheets = Array.isArray(data.pageSheets) ? data.pageSheets : [];
-        const avgChars = texts.length > 0
-          ? texts.reduce((s, t) => s + (t || "").length, 0) / texts.length
-          : 0;
+        const data = JSON.parse(xhr.responseText);
 
+        // ── Phase 1: open workspace immediately with basic metadata ──────────
         setMeta({ filename: data.filename, size: data.size, pages: data.pages, info: data.info });
-        setExtractedText(data.text || "");
-        setPageTexts(texts);
-        setPageTitles(titles);
-        setPageSheets(sheets);
+        setPageTexts(Array(data.pages).fill(""));
+        setPageTitles(Array(data.pages).fill(""));
+        setPageSheets(Array(data.pages).fill(""));
+        setExtractedText("");
         setAppState("workspace");
 
+        // ── Phase 2: extract text client-side using pdfjs (already loaded) ──
+        const extractCtrl = new AbortController();
+        ocrAbortRef.current = extractCtrl;
+        let pageTexts = [];
+        try {
+          const extracted = await runTextExtraction(selected, data.pages, extractCtrl.signal);
+          if (extractCtrl.signal.aborted) return;
+          pageTexts = extracted.pageTexts;
+          setPageTexts(pageTexts);
+          setPageTitles(extracted.pageTitles);
+          setPageSheets(extracted.pageSheets);
+          setExtractedText(pageTexts.join("\n\n"));
+        } catch (e) {
+          if (!extractCtrl.signal.aborted) setError(`Text extraction failed: ${e.message}`);
+          return;
+        }
+
+        // ── Phase 3: OCR fallback for scanned PDFs ───────────────────────────
+        const avgChars = pageTexts.length > 0
+          ? pageTexts.reduce((s, t) => s + (t || "").length, 0) / pageTexts.length
+          : 0;
         if (avgChars < OCR_CHAR_THRESHOLD && data.pages > 0) {
           setIsOcring(true);
-          const ctrl = new AbortController();
-          ocrAbortRef.current = ctrl;
+          const ocrCtrl = new AbortController();
+          ocrAbortRef.current = ocrCtrl;
           try {
             const ocrTexts = await runOcr(selected, data.pages,
               (pg, total) => setOcrProgress({ page: pg, total }),
-              ctrl.signal,
+              ocrCtrl.signal,
             );
-            if (!ctrl.signal.aborted) {
+            if (!ocrCtrl.signal.aborted) {
               setPageTexts(ocrTexts);
               setExtractedText(ocrTexts.join("\n\n"));
             }
           } catch (e) {
-            if (!ctrl.signal.aborted) setError(`OCR failed: ${e.message}`);
+            if (!ocrCtrl.signal.aborted) setError(`OCR failed: ${e.message}`);
           } finally {
             setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
           }
@@ -293,6 +309,65 @@ export default function App() {
       )}
     </div>
   );
+}
+
+// ── Title / sheet patterns (mirrors server-side extractPageMeta) ──────────────
+
+const TITLE_PATTERNS = [
+  /REFLECTED CEILING PLAN/i, /FOUNDATION PLAN/i, /FRAMING PLAN/i,
+  /ELECTRICAL PLAN/i, /PLUMBING PLAN/i, /MECHANICAL PLAN/i,
+  /LANDSCAPE PLAN/i, /FLOOR PLAN/i, /ROOF PLAN/i, /SITE PLAN/i,
+  /ELEVATION/i, /SECTION/i, /SCHEDULE/i, /DETAIL/i, /\bRCP\b/,
+];
+const SHEET_PATTERNS = [
+  /^[A-Z]{1,3}[-.]?\d{1,2}[-.]\d{2,3}$/, /^[ASMEPLCFI]\d{3}$/, /^[A-Z]{1,3}-\d{3}$/,
+];
+
+function extractPageMetaClient(items, pageW, pageH) {
+  const valid = items.filter((i) => typeof i.str === "string" && i.str.trim().length > 0);
+  const isSheetNum = (s) => SHEET_PATTERNS.some((re) => re.test(s.trim()));
+
+  let sheet = "";
+  const bottomRight = valid
+    .filter((item) => { const [,,,, x, y] = item.transform; return x >= pageW * 0.65 && y <= pageH * 0.25; })
+    .sort((a, b) => Math.hypot(pageW - a.transform[4], a.transform[5]) - Math.hypot(pageW - b.transform[4], b.transform[5]));
+  for (const item of bottomRight) {
+    if (isSheetNum(item.str.trim())) { sheet = item.str.trim(); break; }
+  }
+
+  let title = "";
+  const rightText = valid.filter((i) => i.transform[4] >= pageW * 0.7).map((i) => i.str).join(" ");
+  for (const re of TITLE_PATTERNS) { const m = rightText.match(re); if (m) { title = m[0].toUpperCase(); break; } }
+  if (!title) {
+    const fullText = valid.map((i) => i.str).join(" ");
+    for (const re of TITLE_PATTERNS) { const m = fullText.match(re); if (m) { title = m[0].toUpperCase(); break; } }
+  }
+  return { title, sheet };
+}
+
+// ── Client-side text extraction (pdfjs already loaded for viewing) ────────────
+
+async function runTextExtraction(file, numPages, signal) {
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const pageTexts = [], pageTitles = [], pageSheets = [];
+  try {
+    for (let i = 1; i <= numPages; i++) {
+      if (signal?.aborted) break;
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 1 });
+      const tc = await page.getTextContent({ normalizeWhitespace: true, disableCombineTextItems: true });
+      const items = tc.items.filter((it) => "str" in it);
+      const text = items.map((it) => it.str).join(" ").replace(/\s+/g, " ").trim();
+      const { title, sheet } = extractPageMetaClient(items, viewport.width, viewport.height);
+      pageTexts.push(text);
+      pageTitles.push(title);
+      pageSheets.push(sheet);
+    }
+  } finally {
+    await pdf.destroy();
+  }
+  return { pageTexts, pageTitles, pageSheets };
 }
 
 // ── OCR Helper ────────────────────────────────────────────────────────────────
