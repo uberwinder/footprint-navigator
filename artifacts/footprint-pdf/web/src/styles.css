@@ -677,6 +677,8 @@ button { font-family: inherit; }
   cursor: text;
   transform-origin: 0% 0%;
   pointer-events: all;
+  user-select: text;
+  -webkit-user-select: text;
 }
 .ws-text-layer ::selection {
   background: rgba(0, 123, 255, 0.35);

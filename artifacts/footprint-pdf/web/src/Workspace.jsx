@@ -768,14 +768,21 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       if (query && query.trim()) await drawHighlights(ctx, page, viewport, dpr, query.trim());
 
       // Render PDF.js text layer for text selection
-      if (textLayerRef.current && typeof pdfjsLib.renderTextLayer === "function") {
+      if (textLayerRef.current) {
         const tl = textLayerRef.current;
         tl.innerHTML = "";
         tl.style.width  = `${Math.floor(viewport.width)}px`;
         tl.style.height = `${Math.floor(viewport.height)}px`;
         try {
           const textContent = await page.getTextContent();
-          pdfjsLib.renderTextLayer({ textContentSource: textContent, container: tl, viewport });
+          if (pdfjsLib.TextLayer) {
+            // PDF.js v4+ class-based API
+            const layer = new pdfjsLib.TextLayer({ textContentSource: textContent, container: tl, viewport });
+            await layer.render();
+          } else if (typeof pdfjsLib.renderTextLayer === "function") {
+            // Legacy PDF.js v2/v3 function API
+            pdfjsLib.renderTextLayer({ textContentSource: textContent, container: tl, viewport });
+          }
         } catch { /* graceful degradation */ }
       }
     } catch (err) {
@@ -1042,11 +1049,24 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       if (ctrl && k === "2") { e.preventDefault(); setViewMode("splitV");  return; }
       if (ctrl && (k === "h" || k === "H")) { e.preventDefault(); setViewMode("splitH"); return; }
 
-      // View history: Alt+Arrows and Ctrl+Z / Ctrl+Y
+      // Ctrl+A: select all text on current page (text tool only)
+      if (ctrl && (k === "a" || k === "A") && currentToolRef.current === "text") {
+        e.preventDefault();
+        if (textLayerRef.current) {
+          const sel = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(textLayerRef.current);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        return;
+      }
+
+      // View history: Alt+Arrows and Ctrl+Z / Ctrl+Y (skip when text tool active — let browser handle)
       if (alt && k === "ArrowLeft")  { e.preventDefault(); goBackView();    return; }
       if (alt && k === "ArrowRight") { e.preventDefault(); goForwardView(); return; }
-      if (!inInput && ctrl && (k === "z" || k === "Z")) { e.preventDefault(); goBackView();    return; }
-      if (!inInput && ctrl && (k === "y" || k === "Y")) { e.preventDefault(); goForwardView(); return; }
+      if (!inInput && ctrl && (k === "z" || k === "Z") && currentToolRef.current !== "text") { e.preventDefault(); goBackView();    return; }
+      if (!inInput && ctrl && (k === "y" || k === "Y") && currentToolRef.current !== "text") { e.preventDefault(); goForwardView(); return; }
 
       // Find (Ctrl+F)
       if (!inInput && ctrl && (k === "f" || k === "F")) { e.preventDefault(); setActivePanelTab("search"); setPanelOpen(true); return; }
