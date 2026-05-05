@@ -122,12 +122,22 @@ export default function App() {
     xhr.send(formData);
   }, []);
 
-  const onFileChange = (e) => { const f = e.target.files?.[0]; if (f) uploadFile(f); };
+  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
+  const SIZE_ERROR = "This file exceeds the 500MB testing limit. Please contact us at info@footprintnavigator.com for large file support.";
+
+  const onFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > MAX_FILE_SIZE) { setError(SIZE_ERROR); return; }
+    uploadFile(f);
+  };
   const onDrop = (e) => {
     e.preventDefault();
     const f = e.dataTransfer.files?.[0];
-    if (f && f.type === "application/pdf") uploadFile(f);
-    else if (f) setError("Please drop a PDF document");
+    if (!f) return;
+    if (f.size > MAX_FILE_SIZE) { setError(SIZE_ERROR); return; }
+    if (f.type === "application/pdf") uploadFile(f);
+    else setError("Please drop a PDF document");
   };
 
   return (
@@ -151,7 +161,7 @@ export default function App() {
               onDragOver={(e) => e.preventDefault()}
               onClick={() => inputRef.current?.click()}
             >
-              <input ref={inputRef} type="file" accept="application/pdf" onChange={onFileChange} hidden />
+              <input ref={inputRef} type="file" accept=".pdf,application/pdf" onChange={onFileChange} hidden />
               <div className="dropzone-inner">
                 <div className="dropzone-icon">
                   <svg viewBox="0 0 24 24" width="48" height="48" fill="none">
@@ -161,6 +171,7 @@ export default function App() {
                 </div>
                 <h2>Drop a document to begin</h2>
                 <p>or click to browse</p>
+                <p className="upload-hint">Accepts PDF files only · 500MB limit during testing</p>
                 <button type="button" className="btn primary">Choose Document</button>
               </div>
               {error && <p className="error">{error}</p>}
