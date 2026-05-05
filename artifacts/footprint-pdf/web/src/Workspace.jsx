@@ -1632,12 +1632,22 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
     console.log(`[Navigator] Gemini strategy: ${contextStrategy} — ${contextPages.length} pages:`, contextPages.map((p) => p.page));
 
+    // Build conversation history for the AI — completed turns only, last 10 messages
+    const history = chatMessages
+      .filter((m) => !m.thinking && (m.role === "user" || (m.role === "navigator" && m.text)))
+      .slice(-10)
+      .map((m) => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text,
+      }));
+
     try {
       const resp = await fetch("/pdf-api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question: q, pageTexts: contextPages, summaryContext: summaryCtx,
+          history,
           customPrompt: customPrompt || undefined, responseLength,
           mode: navigatorMode,
           customModels: customModelsEnabled ? customModelConfig : undefined,

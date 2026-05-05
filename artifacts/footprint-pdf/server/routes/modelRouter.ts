@@ -11,6 +11,11 @@ console.log("[modelRouter] ANTHROPIC_API_KEY set:", !!process.env["ANTHROPIC_API
 export type Complexity = "simple" | "moderate" | "complex";
 export type Mode       = "free" | "balanced" | "best";
 
+export interface HistoryMessage {
+  role:    "user" | "assistant";
+  content: string;
+}
+
 // Cost per million tokens (input / output)
 export const MODEL_COSTS: Record<string, { input: number; output: number; name: string }> = {
   "groq-70b":      { input: 0.59,  output: 0.79,  name: "Groq Llama 3.3 70B" },
@@ -106,22 +111,28 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// ── Serialize history for flat-prompt APIs (Gemini) ─────────────────────────
+function serializeHistory(history: HistoryMessage[]): string {
+  if (!history.length) return "";
+  return history
+    .map((m) => (m.role === "user" ? `User: ${m.content}` : `Assistant: ${m.content}`))
+    .join("\n") + "\n";
+}
+
 // ── Provider call functions ─────────────────────────────────────────────────
 
 async function callGroq(
   apiKey: string, systemPrompt: string, userContent: string,
-  groqModel: string, timeoutMs: number
+  groqModel: string, timeoutMs: number, history: HistoryMessage[]
 ): Promise<string> {
-  const client     = new Groq({ apiKey });
+  const client = new Groq({ apiKey });
+  const messages: Groq.Chat.ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
+    ...history.map((m) => ({ role: m.role, content: m.content } as Groq.Chat.ChatCompletionMessageParam)),
+    { role: "user",   content: userContent },
+  ];
   const completion = await withTimeout(
-    client.chat.completions.create({
-      model: groqModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user",   content: userContent  },
-      ],
-      max_tokens: 512,
-    }),
+    client.chat.completions.create({ model: groqModel, messages, max_tokens: 512 }),
     timeoutMs
   );
   const text = completion.choices[0]?.message?.content;
@@ -129,9 +140,11 @@ async function callGroq(
   return text;
 }
 
-async function callGemini(apiKey: string, prompt: string): Promise<string> {
+async function callGemini(apiKey: string, systemPrompt: string, context: string, question: string, history: HistoryMessage[]): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const historyBlock = serializeHistory(history);
+  const prompt = `${systemPrompt}\n\n${context}\n\n${historyBlock}User: ${question}`;
   let lastErr: Error | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -150,18 +163,16 @@ async function callGemini(apiKey: string, prompt: string): Promise<string> {
 
 async function callOpenAI(
   apiKey: string, systemPrompt: string, userContent: string,
-  model: string, timeoutMs: number
+  model: string, timeoutMs: number, history: HistoryMessage[]
 ): Promise<string> {
-  const client     = new OpenAI({ apiKey });
+  const client = new OpenAI({ apiKey });
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
+    ...history.map((m) => ({ role: m.role, content: m.content } as OpenAI.Chat.ChatCompletionMessageParam)),
+    { role: "user",   content: userContent },
+  ];
   const completion = await withTimeout(
-    client.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user",   content: userContent  },
-      ],
-      max_tokens: 512,
-    }),
+    client.chat.completions.create({ model, messages, max_tokens: 512 }),
     timeoutMs
   );
   const text = completion.choices[0]?.message?.content;
@@ -171,16 +182,15 @@ async function callOpenAI(
 
 async function callAnthropic(
   apiKey: string, systemPrompt: string, userContent: string,
-  model: string, timeoutMs: number
+  model: string, timeoutMs: number, history: HistoryMessage[]
 ): Promise<string> {
-  const client   = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey });
+  const messages: Anthropic.MessageParam[] = [
+    ...history.map((m) => ({ role: m.role, content: m.content } as Anthropic.MessageParam)),
+    { role: "user", content: userContent },
+  ];
   const response = await withTimeout(
-    client.messages.create({
-      model,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userContent }],
-      max_tokens: 512,
-    }),
+    client.messages.create({ model, system: systemPrompt, messages, max_tokens: 512 }),
     timeoutMs
   );
   const textBlock = response.content.find(
@@ -196,7 +206,9 @@ function buildModelFn(
   modelId: string,
   systemPrompt: string,
   userContent: string,
-  geminiPrompt: string
+  context: string,
+  question: string,
+  history: HistoryMessage[]
 ): () => Promise<string> {
   const groqKey      = process.env["GROQ_API_KEY"];
   const geminiKey    = process.env["GEMINI_API_KEY"];
@@ -206,22 +218,22 @@ function buildModelFn(
   switch (modelId) {
     case "groq-70b":
       if (!groqKey) throw new Error("GROQ_API_KEY not set");
-      return () => callGroq(groqKey, systemPrompt, userContent, "llama-3.3-70b-versatile", 8000);
+      return () => callGroq(groqKey, systemPrompt, userContent, "llama-3.3-70b-versatile", 8000, history);
     case "gemini-flash":
       if (!geminiKey) throw new Error("GEMINI_API_KEY not set");
-      return () => callGemini(geminiKey, geminiPrompt);
+      return () => callGemini(geminiKey, systemPrompt, context, question, history);
     case "gpt-4o-mini":
       if (!openaiKey) throw new Error("OPENAI_API_KEY not set");
-      return () => callOpenAI(openaiKey, systemPrompt, userContent, "gpt-4o-mini", 15000);
+      return () => callOpenAI(openaiKey, systemPrompt, userContent, "gpt-4o-mini", 15000, history);
     case "gpt-4o":
       if (!openaiKey) throw new Error("OPENAI_API_KEY not set");
-      return () => callOpenAI(openaiKey, systemPrompt, userContent, "gpt-4o", 30000);
+      return () => callOpenAI(openaiKey, systemPrompt, userContent, "gpt-4o", 30000, history);
     case "claude-haiku":
       if (!anthropicKey) throw new Error("ANTHROPIC_API_KEY not set");
-      return () => callAnthropic(anthropicKey, systemPrompt, userContent, "claude-haiku-4-5", 10000);
+      return () => callAnthropic(anthropicKey, systemPrompt, userContent, "claude-haiku-4-5", 10000, history);
     case "claude-sonnet":
       if (!anthropicKey) throw new Error("ANTHROPIC_API_KEY not set");
-      return () => callAnthropic(anthropicKey, systemPrompt, userContent, "claude-sonnet-4-5", 20000);
+      return () => callAnthropic(anthropicKey, systemPrompt, userContent, "claude-sonnet-4-5", 20000, history);
     default:
       throw new Error(`Unknown model: ${modelId}`);
   }
@@ -251,14 +263,14 @@ export async function routeToModel(
   lengthSuffix:  string,
   summaryCtx?:   string,
   mode:          Mode = "balanced",
-  customModels?: CustomModels
+  customModels?: CustomModels,
+  history:       HistoryMessage[] = [],
 ): Promise<RouterResult> {
   const start           = Date.now();
   const complexity      = classifyQuestion(question);
   const effectivePrompt = systemPrompt + lengthSuffix;
   const context         = buildContext(pageTexts, complexity, summaryCtx);
   const userContent     = `${context}\n\nQuestion: ${question}`;
-  const geminiPrompt    = `${effectivePrompt}\n\n${context}\n\nQuestion: ${question}`;
 
   const geminiKey = process.env["GEMINI_API_KEY"];
   if (!geminiKey) throw new Error("GEMINI_API_KEY is not configured.");
@@ -276,7 +288,7 @@ export async function routeToModel(
   const models: ModelSpec[] = [];
   for (const modelId of modelChain) {
     try {
-      const fn = buildModelFn(modelId, effectivePrompt, userContent, geminiPrompt);
+      const fn = buildModelFn(modelId, effectivePrompt, userContent, context, question, history);
       models.push({ id: modelId, fn });
     } catch (err) {
       console.warn(`[modelRouter] skipping ${modelId}: ${(err as Error).message}`);
@@ -288,7 +300,7 @@ export async function routeToModel(
     try {
       models.push({
         id: "gemini-flash",
-        fn: buildModelFn("gemini-flash", effectivePrompt, userContent, geminiPrompt),
+        fn: buildModelFn("gemini-flash", effectivePrompt, userContent, context, question, history),
       });
     } catch {}
   }
@@ -306,7 +318,7 @@ export async function routeToModel(
       const modelName = MODEL_COSTS[id]?.name ?? id;
 
       if (id === primaryId) {
-        console.log(`[modelRouter] complexity: ${complexity} | mode: ${mode} | model: ${id} | ${latencyMs}ms | $${estimatedCostUSD.toFixed(6)}`);
+        console.log(`[modelRouter] complexity: ${complexity} | mode: ${mode} | model: ${id} | history: ${history.length} msgs | ${latencyMs}ms | $${estimatedCostUSD.toFixed(6)}`);
       } else {
         console.log(`[modelRouter] complexity: ${complexity} | mode: ${mode} | primary: ${primaryId} → fallback: ${id} | ${latencyMs}ms`);
       }
