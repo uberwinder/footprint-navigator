@@ -132,10 +132,13 @@ export default function WorkspaceOnboarding({ onClose }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question, history: hist }),
       });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
       const data = await res.json();
-      return (data.answer || "That is a great question — I may not have enough context right now. Try asking Navigator directly using the chat panel after the tour, or reach us at info@footprintnavigator.com.").trim();
-    } catch {
-      return "That is a great question — I may not have enough context right now. Try asking Navigator directly using the chat panel after the tour, or reach us at info@footprintnavigator.com.";
+      if (!data.answer) throw new Error("Empty response from AI");
+      return data.answer.trim();
+    } catch (err) {
+      console.error("[onboard] AI call failed:", err);
+      return "Something went wrong reaching Navigator — please try again.";
     }
   }, []);
 
@@ -244,6 +247,9 @@ export default function WorkspaceOnboarding({ onClose }) {
                   <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"
                     stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
+              </button>
+              <button className="wob-btn wob-btn--primary" onClick={handleClose}>
+                Let's go
               </button>
             </>
           )}

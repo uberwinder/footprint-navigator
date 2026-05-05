@@ -1,4 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
 
 const router: IRouter = Router();
 
@@ -43,14 +45,56 @@ ONBOARDING RULES:
 7. Be concise. Two to four sentences maximum per response unless a detailed explanation is genuinely needed.
 8. When asked what you are: say "I'm Navigator, your AI assistant made by Footprint Technologies."
 9. Never treat questions as isolated — read the full conversation history before answering.
-10. If you genuinely cannot answer a question confidently — for example because it requires knowledge you do not have — respond with exactly: "That is a great question — I may not have enough context right now. Try asking Navigator directly using the chat panel after the tour, or reach us at info@footprintnavigator.com." Do not make up an answer.`;
-
-const FALLBACK =
-  "That is a great question — I may not have enough context right now. Try asking Navigator directly using the chat panel after the tour, or reach us at info@footprintnavigator.com.";
+10. If the user says something simple like "all good", "no questions", "I'm good", "thanks", or similar — respond naturally and warmly, e.g. "Great — enjoy the app! Click Let's go whenever you are ready." Do not treat these as unanswerable questions.
+11. If you genuinely cannot answer a question confidently — for example because it requires knowledge you do not have — say so briefly and suggest reaching out at info@footprintnavigator.com. Do not use a rigid fallback phrase.`;
 
 interface OnboardMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+async function callClaude(
+  apiKey: string,
+  question: string,
+  history: OnboardMessage[]
+): Promise<string> {
+  const client = new Anthropic({ apiKey });
+  const messages: Anthropic.MessageParam[] = [
+    ...history.map((m) => ({ role: m.role, content: m.content } as Anthropic.MessageParam)),
+    { role: "user", content: question },
+  ];
+  const response = await client.messages.create({
+    model: "claude-sonnet-4-5",
+    system: ONBOARDING_PROMPT,
+    messages,
+    max_tokens: 512,
+  });
+  const textBlock = response.content.find(
+    (b): b is Anthropic.TextBlock => b.type === "text"
+  );
+  if (!textBlock) throw new Error("Claude returned empty response");
+  return textBlock.text.trim();
+}
+
+async function callGroq(
+  apiKey: string,
+  question: string,
+  history: OnboardMessage[]
+): Promise<string> {
+  const client = new Groq({ apiKey });
+  const messages: Groq.Chat.ChatCompletionMessageParam[] = [
+    { role: "system", content: ONBOARDING_PROMPT },
+    ...history.map((m) => ({ role: m.role, content: m.content } as Groq.Chat.ChatCompletionMessageParam)),
+    { role: "user",   content: question },
+  ];
+  const completion = await client.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages,
+    max_tokens: 512,
+  });
+  const text = completion.choices[0]?.message?.content;
+  if (!text) throw new Error("Groq returned empty response");
+  return text.trim();
 }
 
 router.post("/onboard", async (req: Request, res: Response) => {
@@ -63,49 +107,37 @@ router.post("/onboard", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "question is required" });
   }
 
-  const apiKey = process.env["GEMINI_API_KEY"];
-  if (!apiKey) {
-    return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+  const hist: OnboardMessage[] = Array.isArray(history) ? history : [];
+  const anthropicKey = process.env["ANTHROPIC_API_KEY"];
+  const groqKey      = process.env["GROQ_API_KEY"];
+
+  if (!anthropicKey && !groqKey) {
+    return res.status(500).json({ error: "No AI API keys configured (ANTHROPIC_API_KEY or GROQ_API_KEY required)" });
   }
 
-  const messages = [
-    ...(Array.isArray(history) ? history : []),
-    { role: "user" as const, content: question },
-  ];
+  let lastError: string | null = null;
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: ONBOARDING_PROMPT }] },
-          contents: messages.map((m) => ({
-            role: m.role === "assistant" ? "model" : "user",
-            parts: [{ text: m.content }],
-          })),
-          generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini error ${response.status}: ${errText.slice(0, 200)}`);
+  if (anthropicKey) {
+    try {
+      const answer = await callClaude(anthropicKey, question, hist);
+      return res.json({ answer });
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      req.log?.warn({ err }, "[onboard] Claude failed, trying Groq fallback");
     }
-
-    const data = await response.json() as {
-      candidates?: Array<{ content: { parts: Array<{ text: string }> } }>;
-    };
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? FALLBACK;
-
-    return res.json({ answer });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Onboard AI failed";
-    console.error("[onboard]", msg);
-    return res.status(500).json({ error: msg });
   }
+
+  if (groqKey) {
+    try {
+      const answer = await callGroq(groqKey, question, hist);
+      return res.json({ answer });
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+      req.log?.error({ err }, "[onboard] Groq fallback also failed");
+    }
+  }
+
+  return res.status(502).json({ error: `AI unavailable: ${lastError}` });
 });
 
 export default router;
