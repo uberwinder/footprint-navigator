@@ -193,22 +193,6 @@ export default function WorkspaceOnboarding({ onClose }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // ── Opening handlers ────────────────────────────────────────────────────────
-  const handleOpeningReady = useCallback(() => {
-    setFeatureIndex(0);
-    setPhase("feature-intro");
-  }, []);
-
-  const handleOpeningTellMore = useCallback(async () => {
-    if (loading) return;
-    setLoading(true);
-    setFetchedText("");
-    setPhase("opening-more");
-    const answer = await callAI(OPENING_TELL_MORE_PROMPT, []);
-    setLoading(false);
-    setFetchedText(answer);
-  }, [loading, callAI]);
-
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const advanceFeature = useCallback(() => {
     const next = featureIndex + 1;
@@ -234,7 +218,22 @@ export default function WorkspaceOnboarding({ onClose }) {
     }
   }, []);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
+  // ── Handlers (all must come after callAI) ───────────────────────────────────
+  const handleOpeningReady = useCallback(() => {
+    setFeatureIndex(0);
+    setPhase("feature-intro");
+  }, []);
+
+  const handleOpeningTellMore = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
+    setFetchedText("");
+    setPhase("opening-more");
+    const answer = await callAI(OPENING_TELL_MORE_PROMPT, []);
+    setLoading(false);
+    setFetchedText(answer);
+  }, [loading, callAI]);
+
   const handleGotIt = useCallback(() => advanceFeature(), [advanceFeature]);
 
   const handleTellMore = useCallback(async () => {
