@@ -312,9 +312,18 @@ function mDrawMeasurement(ctx, m, calib) {
     mDrawLabel(ctx, `${mAngleDeg(v,p2,p3).toFixed(1)}°`, v.x, v.y - 30);
   } else if (type === "count" && pts.length >= 1) {
     const p = pts[0];
-    ctx.save(); ctx.fillStyle = "#00e5ff"; ctx.beginPath(); ctx.arc(p.x,p.y,9,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#000"; ctx.font = "bold 10px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("#", p.x, p.y); ctx.restore();
+    const num = m.countIndex != null ? String(m.countIndex) : "•";
+    const r = 13;
+    ctx.save();
+    ctx.fillStyle = "#007BFF";
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#fff";
+    ctx.font = `bold ${num.length > 2 ? "9" : "11"}px Montserrat, system-ui`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(num, p.x, p.y);
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -1897,9 +1906,13 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     }
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, w, h);
+    let countIdx = 0;
     measurements
       .filter((m) => m.page == null || m.page === pageNum)
-      .forEach((m) => mDrawMeasurement(ctx, m, calibSaved));
+      .forEach((m) => {
+        const drawM = m.type === "count" ? { ...m, countIndex: ++countIdx } : m;
+        mDrawMeasurement(ctx, drawM, calibSaved);
+      });
     const pts  = measurePointsRef.current;
     const tool = currentToolRef.current;
     const mp   = overrideMousePos !== undefined ? overrideMousePos : mousePosRef.current;
@@ -1965,6 +1978,48 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     setMeasurements((ms) => [...ms, { id: Date.now(), page: pageNum, type: tool, points: [...pts] }]);
     setMeasurePoints([]);
   }, [pageNum]);
+
+  // ── Count tool helpers ─────────────────────────────────────────────────────
+
+  const resetCountMarkers = useCallback(() => {
+    setMeasurements((ms) => ms.filter((m) => !(m.type === "count" && (m.page == null || m.page === pageNum))));
+  }, [pageNum]);
+
+  const exportMeasurementsCSV = useCallback(() => {
+    if (!measurements.length) { showToast("No measurements to export"); return; }
+    let countIdx = 0;
+    const rows = [["Type", "Page", "Marker #", "Value", "Unit"]];
+    measurements.forEach((m) => {
+      const pg = m.page ?? "—";
+      if (m.type === "count") {
+        rows.push(["Count", pg, ++countIdx, 1, "item"]);
+      } else if (m.type === "length" && m.points.length >= 2) {
+        const raw = mPxDist(m.points[0], m.points[1]);
+        const val = calibSaved ? (raw / calibSaved.pixelsPerUnit).toFixed(3) : raw.toFixed(1);
+        rows.push(["Length", pg, "—", val, calibSaved ? calibSaved.unit : "px"]);
+      } else if (m.type === "polylength" && m.points.length >= 2) {
+        const raw = mPolyLen(m.points);
+        const val = calibSaved ? (raw / calibSaved.pixelsPerUnit).toFixed(3) : raw.toFixed(1);
+        rows.push(["Polylength", pg, "—", val, calibSaved ? calibSaved.unit : "px"]);
+      } else if (m.type === "area" && m.points.length >= 3) {
+        const raw = mPolyArea(m.points);
+        const val = calibSaved ? (raw / calibSaved.pixelsPerUnit ** 2).toFixed(3) : raw.toFixed(1);
+        rows.push(["Area", pg, "—", val, calibSaved ? `${calibSaved.unit}²` : "px²"]);
+      } else if (m.type === "perimeter" && m.points.length >= 3) {
+        const raw = mPolyLen([...m.points, m.points[0]]);
+        const val = calibSaved ? (raw / calibSaved.pixelsPerUnit).toFixed(3) : raw.toFixed(1);
+        rows.push(["Perimeter", pg, "—", val, calibSaved ? calibSaved.unit : "px"]);
+      } else if (m.type === "angle" && m.points.length >= 3) {
+        rows.push(["Angle", pg, "—", mAngleDeg(m.points[0], m.points[1], m.points[2]).toFixed(1), "°"]);
+      }
+    });
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `measurements-${meta.filename.replace(/\.pdf$/i, "")}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }, [measurements, calibSaved, meta.filename]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -2707,6 +2762,20 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
           </button>
         </div>
       </div>
+
+      {/* ── Count Widget ── */}
+      {(currentTool === "count" || measurements.some((m) => m.type === "count" && (m.page == null || m.page === pageNum))) && (
+        <div className="ws-count-widget">
+          <span className="ws-count-label">Count</span>
+          <span className="ws-count-number">
+            {measurements.filter((m) => m.type === "count" && (m.page == null || m.page === pageNum)).length}
+          </span>
+          <div className="ws-count-actions">
+            <button className="ws-count-reset" onClick={resetCountMarkers}>Reset</button>
+            <button className="ws-count-export" onClick={exportMeasurementsCSV} title="Export all measurements to CSV">CSV</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Status Bar ── */}
       <div className="ws-statusbar">
