@@ -23,7 +23,10 @@ UI LOCATIONS — know these exactly so you can tell users where to find things:
 - Scale calibration: opens automatically when a measurement tool is activated without a scale set for that page
 - Measurements panel: shows all measurements, export to CSV
 - Chat panel: bottom right of screen — click the chat icon to open
-- Settings: gear icon in toolbar
+- Settings: settings icon inside the chat panel (not a separate toolbar icon) — open the chat panel first, then look for the settings icon inside it
+- AI mode selector: inside chat panel settings — Free mode uses Groq Llama for fast responses; Balanced combines models for better accuracy; Best uses Claude and GPT-4o for maximum reasoning
+- System prompt editor: inside chat panel settings — lets users customize how Navigator responds
+- Cost tracker and usage stats: inside chat panel settings — shows token usage and estimated cost, per session only
 - Split view vertical: Ctrl+2 | Split view horizontal: Ctrl+H
 - Full screen: F11
 - Zoom: Z key or toolbar | Pan: Shift+V | Select: V | Select text: Shift+T

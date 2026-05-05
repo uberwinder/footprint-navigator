@@ -47,7 +47,7 @@ const FEATURES = [
   {
     title: "Settings and AI Modes",
     intro:
-      "The settings panel gives full control over how Navigator works. Choose your AI mode, customize behavior, and track usage all from one place.",
+      "The chat panel has its own settings that give you full control over how Navigator responds. To access them, open the chat panel and look for the settings icon inside it. From there you can choose your AI mode, customize how Navigator responds, and track your usage.",
   },
 ];
 
