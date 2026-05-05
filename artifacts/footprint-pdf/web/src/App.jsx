@@ -206,8 +206,8 @@ export default function App() {
       {/* ── Feedback modal (triggered by tab close / beforeunload) ── */}
       {showFeedback && <FeedbackModal onClose={handleFeedbackClose} />}
 
-      {/* ── Onboarding bubble (landing + loading screens) ── */}
-      {(appState === "idle" || appState === "loading") && <OnboardingBubble />}
+      {/* ── Onboarding bubble (workspace only) ── */}
+      {appState === "workspace" && <OnboardingBubble />}
 
       {/* ── Drop zone ── */}
       {appState === "idle" && (
