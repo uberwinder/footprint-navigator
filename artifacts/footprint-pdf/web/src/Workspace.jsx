@@ -1427,9 +1427,14 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     catch {}
   }, [chatMessages, meta.filename]);
 
-  // Auto-scroll to newest message
+  // Auto-scroll to bottom whenever messages change (new message or thinking → answer swap)
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = chatMessagesRef.current;
+    if (!el) return;
+    // Use rAF so the DOM has finished painting the new content before we measure scrollHeight
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
   }, [chatMessages]);
 
   // ── Document Summary ───────────────────────────────────────────────────────
