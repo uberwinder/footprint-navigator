@@ -1813,7 +1813,9 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     }
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, w, h);
-    measurements.forEach((m) => mDrawMeasurement(ctx, m, calibSaved));
+    measurements
+      .filter((m) => m.page == null || m.page === pageNum)
+      .forEach((m) => mDrawMeasurement(ctx, m, calibSaved));
     const pts  = measurePointsRef.current;
     const tool = currentToolRef.current;
     const mp   = overrideMousePos !== undefined ? overrideMousePos : mousePosRef.current;
@@ -1821,7 +1823,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       mDrawInProgress(ctx, pts, tool, pts.length > 0 ? mp : null, calibSaved);
     }
     mDrawSnapIndicator(ctx, snapResultRef.current);
-  }, [measurements, calibSaved]);
+  }, [measurements, calibSaved, pageNum]);
 
   useEffect(() => { drawMeasureCanvas(); }, [drawMeasureCanvas, measurePoints, currentTool]);
 
