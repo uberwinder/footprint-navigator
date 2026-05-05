@@ -716,16 +716,27 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   useEffect(() => { pageNumRef.current = pageNum; }, [pageNum]);
   useEffect(() => { scaleRef.current   = scale;   }, [scale]);
 
+  // ── PDF load error state ───────────────────────────────────────────────────
+  const [pdfLoadError, setPdfLoadError] = useState(null);
+
   // ── PDF Load ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
     let cancelled = false;
+    setPdfLoadError(null);
     (async () => {
-      const buffer = await file.arrayBuffer();
-      const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
-      if (cancelled) { doc.destroy(); return; }
-      setPdfDoc(doc);
-      setNumPages(doc.numPages);
+      try {
+        const buffer = await file.arrayBuffer();
+        const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
+        if (cancelled) { doc.destroy(); return; }
+        setPdfDoc(doc);
+        setNumPages(doc.numPages);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("[Workspace] PDF load failed:", err);
+          setPdfLoadError(err?.message || String(err));
+        }
+      }
     })();
     return () => { cancelled = true; };
   }, [file]);
@@ -2204,10 +2215,24 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
             </div>
           )}
 
+          {pdfLoadError && (
+            <div style={{ padding: "40px", color: "#ff5a5f", textAlign: "center" }}>
+              <p style={{ fontWeight: 600, marginBottom: "8px" }}>Failed to load PDF</p>
+              <pre style={{ fontSize: "12px", color: "#f88", whiteSpace: "pre-wrap" }}>{pdfLoadError}</pre>
+            </div>
+          )}
+
+          {!pdfLoadError && !pdfDoc && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#888", fontSize: "14px", gap: "10px" }}>
+              <div style={{ width: "18px", height: "18px", border: "2px solid #555", borderTopColor: "#007bff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+              Loading document…
+            </div>
+          )}
+
           {viewMode === "single" ? (
             <div
               className="ws-doc-canvas"
-              style={{ cursor: cursor === "grab" ? "grab" : cursor }}
+              style={{ cursor: cursor === "grab" ? "grab" : cursor, display: pdfDoc ? undefined : "none" }}
               ref={canvasWrapRef}
             >
               <div className="ws-canvas-inner">

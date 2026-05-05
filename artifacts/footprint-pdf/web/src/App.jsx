@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, Component } from "react";
 import PreviewMode from "./PreviewMode.jsx";
 import Workspace   from "./Workspace.jsx";
 import OnboardingBubble from "./OnboardingBubble.jsx";
@@ -7,6 +7,38 @@ import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+
+class WorkspaceErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(err) {
+    return { error: err };
+  }
+  componentDidCatch(err, info) {
+    console.error("[WorkspaceErrorBoundary] React crash in Workspace tree:", err, info?.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: "40px", color: "#fff", background: "#1a1a1a", height: "100vh", boxSizing: "border-box" }}>
+          <h2 style={{ color: "#ff5a5f", marginBottom: "12px" }}>Something went wrong loading the workspace</h2>
+          <pre style={{ background: "#111", padding: "16px", borderRadius: "6px", fontSize: "12px", whiteSpace: "pre-wrap", color: "#f88" }}>
+            {this.state.error?.message || String(this.state.error)}
+          </pre>
+          <button
+            style={{ marginTop: "20px", padding: "10px 20px", background: "#007bff", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" }}
+            onClick={() => { this.setState({ error: null }); this.props.onReset?.(); }}
+          >
+            Return to upload screen
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const OCR_CHAR_THRESHOLD = 50;
 
@@ -296,16 +328,18 @@ export default function App() {
 
       {/* ── Full Workspace ── */}
       {appState === "workspace" && file && meta && (
-        <Workspace
-          file={file}
-          meta={meta}
-          pageTexts={pageTexts}
-          pageTitles={pageTitles}
-          pageSheets={pageSheets}
-          isOcring={isOcring}
-          ocrProgress={ocrProgress}
-          onNewFile={reset}
-        />
+        <WorkspaceErrorBoundary onReset={reset}>
+          <Workspace
+            file={file}
+            meta={meta}
+            pageTexts={pageTexts}
+            pageTitles={pageTitles}
+            pageSheets={pageSheets}
+            isOcring={isOcring}
+            ocrProgress={ocrProgress}
+            onNewFile={reset}
+          />
+        </WorkspaceErrorBoundary>
       )}
     </div>
   );
