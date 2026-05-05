@@ -1,0 +1,171 @@
+Build a Navigator onboarding chat bubble that appears after a 
+document is successfully uploaded and the viewer opens. This is 
+a real AI-powered conversation using the existing Navigator AI 
+infrastructure — not scripted responses.
+
+BUBBLE UI:
+- Floating card centered on screen, sits above the viewer
+- Not full screen, not a modal overlay that blocks everything
+- Width: 480px, height: auto based on content
+- Dark background #1a1a1a, electric blue accents #007BFF
+- Montserrat font matching app branding
+- Top of card shows "Navigator" in electric blue on the left
+- X button in top right — clicking it immediately closes the 
+  bubble and returns to normal viewer mode
+- Navigator responses stream in like the main chat panel
+- Action chips (Got it / Tell me more) appear below each 
+  feature intro after streaming completes
+- Got it moves to next feature immediately with no AI response
+- Tell me more triggers a real AI call with detailed explanation
+- Yes / No buttons appear after every tell me more response
+- Yes advances to next feature
+- No shows a free text input so user can ask a follow-up question
+- After Navigator answers the follow-up Yes/No appears again
+- This continues until user clicks Yes to advance
+
+OPENING MESSAGE:
+Stream this exact text when the bubble first appears:
+"Hey, I'm Navigator — welcome to the Footprint Navigator demo. 
+This product officially launches July 1, 2026, so you may run 
+into a few rough edges while we fine-tune things. I'm going to 
+walk you through what I can do. Let's go."
+
+Then immediately begin Feature 1 without waiting for user input.
+
+FEATURE SEQUENCE:
+Each feature intro is 2-3 sentences max. Friendly practical 
+tone. After each intro show Got it and Tell me more chips.
+
+FEATURE 1 — SHEET AND THUMBNAIL PANEL:
+Intro: The left panel shows every page as a thumbnail. Navigator 
+automatically reads each page title block and detects sheet 
+numbers like A101, P201, E301. Blue means auto-detected, white 
+means manually corrected, gray means not detected. Click any 
+thumbnail to jump to that page instantly.
+
+Tell me more: Explain the thumbnail panel is on the left side 
+of the screen. Sheet number detection works on any structured 
+PDF not just construction drawings. If a sheet number is wrong 
+the user can click the label on the thumbnail to correct it 
+manually. This makes navigating documents with 50, 100, or 500 
+pages fast and accurate. Works great for construction drawing 
+sets, legal documents, technical manuals, insurance files, 
+or any large structured PDF.
+
+FEATURE 2 — KEYWORD SEARCH:
+Intro: Search every page of your document instantly by keyword. 
+Results show the exact page number and a text snippet. Click 
+any result to jump directly to that page.
+
+Tell me more: The search bar is in the top toolbar. Keyboard 
+shortcut is Ctrl+F. It searches extracted text from every page 
+simultaneously. Works best on text-based PDFs and may have 
+limited results on fully scanned image PDFs. Example uses: 
+finding a room name, a spec section, a product name, a note 
+keyword, a clause in a contract, or a person's name in a 
+document. Results are ranked by relevance.
+
+FEATURE 3 — MEASUREMENT TOOLS:
+Intro: Navigator has a full set of measurement tools that work 
+directly on any PDF page. Set your scale first and all 
+measurements calculate real-world dimensions automatically. 
+Navigator will prompt you to set scale if you forget.
+
+Tell me more: Measurement tools are in the toolbar. Keyboard 
+shortcuts are L for length, A for area, P for perimeter, 
+G for angle. Scale must be set before measuring and Navigator 
+will show a prompt if you try to measure without it. Available 
+tools are length, area, perimeter, and angle. Measurements are 
+anchored to their specific page and do not appear on other pages. 
+All measurements export to CSV from the measurements panel. 
+Example uses: measuring room dimensions, calculating material 
+quantities, verifying distances on any document.
+
+FEATURE 4 — NAVIGATOR AI CHAT:
+Intro: The chat panel in the bottom right is where the real 
+power is. Ask Navigator anything about your document in plain 
+language and it will find the answer and link directly to the 
+page it came from.
+
+Tell me more: Open the chat panel by clicking the chat icon 
+in the bottom right of the screen. Navigator reads and indexes 
+the entire document so it can answer questions about any page. 
+Answers always include a clickable page reference. Navigator 
+remembers the conversation so follow-up questions work 
+naturally — ask what carpet is on page 3 then ask where else 
+is this used and Navigator understands. Navigator can also 
+answer general questions about the app, workflows, and document 
+content. Three AI modes are available: Free is fast and good 
+for simple questions, Balanced is better accuracy, Best uses 
+the most powerful models for complex reasoning. Example 
+questions: Where are the PTAC units, What finish is on the 
+corridor walls, Find all references to fire stopping, 
+Summarize page 12, What does clause 4.2 mean.
+
+FEATURE 5 — WHAT IS IN DEVELOPMENT:
+Intro: Footprint Navigator launched as a web app and a lot 
+more is being built right now. Here is what the team is 
+actively working on.
+
+Tell me more: Everything below is currently in development 
+and not yet available in this demo. A desktop app is in 
+development for offline use and local file access without 
+uploading. Support for multiple documents open simultaneously 
+is in development. Navigator will connect to email and project 
+management software so users can take action without leaving 
+the app — this is in development. Persistent project storage 
+to save and reopen projects without re-uploading is in 
+development. Navigator is designed to work with any large PDF 
+including construction drawings, legal documents, insurance 
+files, and technical manuals. Launch date is July 1 2026. 
+Pricing is Solo $19 per month and Team $29 per user per month 
+also in development. Contact info@footprintnavigator.com for 
+questions or large file support.
+
+FEATURE 6 — SETTINGS AND AI MODES (FINAL FEATURE):
+Intro: The settings panel gives full control over how Navigator 
+works. Choose your AI mode, customize behavior, and track 
+usage all from one place.
+
+Tell me more: Open settings from the gear icon in the toolbar. 
+AI mode selector lets you choose Free which uses Groq Llama for 
+fast responses, Balanced which combines models for better 
+accuracy, or Best which uses Claude and GPT-4o for maximum 
+reasoning. Advanced users can override the exact model per tier. 
+The system prompt editor lets you customize how Navigator 
+responds which is useful for teams with specific workflows. 
+Session memory controls let you manage what Navigator remembers 
+during the session. API usage stats and cost tracker show 
+exactly how many tokens have been used and the estimated cost. 
+Snap settings control measurement snapping behavior.
+
+HANDOFF MESSAGE after Feature 6 Got it or Yes:
+Stream this exact text:
+"That is everything for now. The chat panel in the bottom right 
+is always available if you have questions about your document 
+or the app. I am here whenever you need me. Good luck — and 
+remember, this is still a demo. If something does not work 
+right, we want to know about it. Reach us at 
+info@footprintnavigator.com."
+
+Then close the bubble automatically and return to normal 
+viewer mode.
+
+TECHNICAL REQUIREMENTS:
+- Use the existing AI provider infrastructure already in the app
+- Stream responses the same way the main chat panel does
+- The bubble has its own conversation history separate from 
+  the main chat history
+- The bubble state machine tracks: current feature index, 
+  whether in tell more mode or free question mode
+- Closing with X immediately returns to normal viewer mode
+- Completing the tour returns to normal viewer mode
+- The bubble does not affect or modify the main chat history
+- After bubble closes normal viewer and chat mode activates
+- The bubble appears every time a document is successfully 
+  uploaded every session with no localStorage suppression
+- The onboarding bubble uses its own system prompt defined 
+  in Prompt 2
+
+Show me the component structure and state machine plan 
+before implementing anything.

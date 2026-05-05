@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import PreviewMode from "./PreviewMode.jsx";
 import Workspace   from "./Workspace.jsx";
+import OnboardingBubble from "./OnboardingBubble.jsx";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
@@ -142,6 +143,9 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* ── Onboarding bubble (landing + loading screens) ── */}
+      {(appState === "idle" || appState === "loading") && <OnboardingBubble />}
+
       {/* ── Drop zone ── */}
       {appState === "idle" && (
         <>
