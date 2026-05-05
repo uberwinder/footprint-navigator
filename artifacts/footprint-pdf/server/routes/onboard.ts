@@ -81,7 +81,7 @@ router.post("/onboard", async (req: Request, res: Response) => {
             role: m.role === "assistant" ? "model" : "user",
             parts: [{ text: m.content }],
           })),
-          generationConfig: { temperature: 0.7, maxOutputTokens: 300 },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
         }),
       }
     );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import WorkspaceOnboarding from "./WorkspaceOnboarding.jsx";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
@@ -647,6 +648,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const [measurePoints,     setMeasurePoints]     = useState([]);   // {x, y} in document coordinates
   const [measurements,      setMeasurements]      = useState([]);   // completed measurements
   const [showMeasurePanel,  setShowMeasurePanel]  = useState(false);
+  const [onboardDone,       setOnboardDone]       = useState(false);
   // Snap to Content
   const [snapEnabled,  setSnapEnabled]  = useState(() => localStorage.getItem("navigator-snap-enabled") !== "false");
   const [snapSettings, setSnapSettings] = useState(() => {
@@ -2025,6 +2027,9 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
   return (
     <div className="ws-root">
+      {/* ── Workspace Onboarding Tour ── */}
+      {!onboardDone && <WorkspaceOnboarding onClose={() => setOnboardDone(true)} />}
+
       {/* ── Menu Bar ── */}
       <div className="ws-menubar" ref={menuBarRef}>
         {MENUS.map((menu) => (

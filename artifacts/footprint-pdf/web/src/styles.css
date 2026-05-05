@@ -1714,3 +1714,162 @@ button { font-family: inherit; }
 }
 .ob-send:hover:not(:disabled) { background: #0062cc; }
 .ob-send:disabled { background: #1e3a5f; cursor: default; opacity: .6; }
+
+/* ── Workspace Onboarding Tour ────────────────────────────── */
+.wob-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 8900;
+  pointer-events: none;
+}
+.wob-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(0, 123, 255, 0.12);
+  font-family: 'Montserrat', system-ui, sans-serif;
+}
+.wob-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #111;
+  border-bottom: 1px solid #252525;
+  flex-shrink: 0;
+  gap: 12px;
+}
+.wob-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wob-logo {
+  font-size: 15px;
+  font-weight: 800;
+  color: #007BFF;
+  letter-spacing: .3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.wob-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #007BFF;
+  background: rgba(0, 123, 255, 0.12);
+  border: 1px solid rgba(0, 123, 255, 0.25);
+  border-radius: 999px;
+  padding: 2px 10px;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wob-close {
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color .15s;
+}
+.wob-close:hover { color: #ccc; }
+.wob-body {
+  padding: 22px 22px 14px;
+  min-height: 90px;
+  max-height: 260px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+.wob-text {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #ddd;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.wob-typing-wrap {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+}
+.wob-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.wob-typing span {
+  width: 7px;
+  height: 7px;
+  background: #555;
+  border-radius: 50%;
+  display: inline-block;
+  animation: wob-bounce 1.2s infinite ease-in-out;
+}
+.wob-typing span:nth-child(2) { animation-delay: .2s; }
+.wob-typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes wob-bounce {
+  0%, 60%, 100% { transform: translateY(0);    background: #555; }
+  30%            { transform: translateY(-6px); background: #007BFF; }
+}
+.wob-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px 18px;
+  flex-shrink: 0;
+  border-top: 1px solid #222;
+}
+.wob-btn {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Montserrat', system-ui, sans-serif;
+  letter-spacing: .4px;
+  border-radius: 7px;
+  padding: 8px 18px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background .15s, border-color .15s, color .15s, opacity .15s;
+  white-space: nowrap;
+}
+.wob-btn:disabled { opacity: .4; cursor: default; }
+.wob-btn--primary { background: #007BFF; color: #fff; border-color: #007BFF; }
+.wob-btn--primary:hover:not(:disabled) { background: #0062cc; border-color: #0062cc; }
+.wob-btn--ghost   { background: transparent; color: #888; border-color: #333; }
+.wob-btn--ghost:hover { border-color: #555; color: #ccc; }
+.wob-btn--send { padding: 8px 13px; flex-shrink: 0; }
+.wob-input {
+  flex: 1;
+  background: #111;
+  border: 1px solid #2e2e2e;
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #e8e8e8;
+  font-family: 'Montserrat', system-ui, sans-serif;
+  outline: none;
+  transition: border-color .15s;
+  min-width: 0;
+}
+.wob-input:focus { border-color: #007BFF; }
+.wob-input::placeholder { color: #555; }
+.wob-input:disabled { opacity: .5; }
