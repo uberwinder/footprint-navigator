@@ -1,0 +1,96 @@
+Build a feedback form that appears as a centered modal overlay 
+when the user tries to close or navigate away from the browser 
+tab. Use the beforeunload event to detect when the user is 
+leaving and show this form before they go.
+
+IMPORTANT: This feedback form has nothing to do with the 
+onboarding chat bubble. It is triggered only when the user 
+tries to close the browser tab or navigate away from the app.
+
+FORM UI:
+- Centered modal overlay, dark background #1a1a1a, 
+  electric blue accents #007BFF, Montserrat font
+- Title at top: "How did we do?" in white
+- Subtitle: "This is a pre-launch demo. Your feedback helps 
+  us build a better product. Takes 60 seconds."
+- X button in top right to skip the form entirely
+- Submit button at bottom in electric blue: "Send Feedback"
+- Skip link below submit button: "Skip for now"
+
+USER INFO SECTION at the top of the form:
+- First Name (text input, optional)
+- Last Name (text input, optional)
+- Work Email (email input, optional)
+- Company (text input, optional)
+
+RATING SECTION below user info:
+Show a rating row for each feature. Each row has:
+- Feature name on the left
+- Seven buttons labeled 0 through 5 on the right
+- 0 button is gray and labeled "Did not use"
+- 1 through 5 go from Bad to Excellent
+- Selected button highlights in electric blue
+- Default state is nothing selected
+
+Rate these features:
+- PDF Upload
+- Sheet and Thumbnail Detection
+- Keyword Search
+- Length Measurement
+- Area Measurement
+- Perimeter Measurement
+- Angle Measurement
+- Navigator AI Chat
+- Page Navigation
+- Zoom and Pan
+- Overall Experience
+
+OPEN FEEDBACK SECTION at the very bottom above submit:
+- Label: "Anything else? What worked, what did not, or what 
+  would you like to see added?"
+- Large text area, at least 4 rows tall
+- Placeholder: "Type anything here..."
+
+DATA HANDLING:
+1. On submit send the feedback via POST to the existing 
+   backend server
+2. The server emails the full feedback to 
+   info@footprintnavigator.com using the existing Resend 
+   integration already in this project
+3. The email should be clearly formatted showing:
+   - Submission date and time
+   - User info if provided
+   - Each feature name and its rating score
+   - The open text feedback at the bottom
+4. The server stores every submission in a new table called 
+   feedback_submissions with these columns:
+   - id integer primary key
+   - submitted_at timestamp
+   - first_name text
+   - last_name text
+   - email text
+   - company text
+   - ratings json storing all feature scores as key value pairs
+   - open_feedback text
+5. If the user skips or closes with X nothing is stored or sent
+6. After successful submit show a thank you message:
+   "Thank you — your feedback goes directly to our team. 
+   We read every submission."
+   Then close the modal after 3 seconds
+
+ADMIN ENDPOINT:
+Create a GET endpoint at /api/admin/feedback that returns 
+all feedback submissions as JSON. Protect it with the same 
+admin key already used in this project: FootprintAdmin2026
+
+TECHNICAL NOTE ON BEFOREUNLOAD:
+The beforeunload event cannot show a custom modal in modern 
+browsers — it only shows a generic browser dialog. To work 
+around this, intercept the beforeunload event to cancel the 
+default browser dialog, then show our custom feedback modal 
+instead. If the user submits or skips the form, then allow 
+the tab to close. This requires careful handling — research 
+the best current approach for this in a React app and 
+implement it correctly.
+
+Push to GitHub after implementing and confirm all files changed.

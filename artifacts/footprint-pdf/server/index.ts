@@ -37,9 +37,10 @@ const checkSecret = (name: string, expected?: string) => {
   console.log(`[secrets] ${name}: ${preview}${hint}`);
 };
 
-checkSecret("GROQ_API_KEY",   "gsk_");
-checkSecret("GEMINI_API_KEY", "AIza");
+checkSecret("GROQ_API_KEY",    "gsk_");
+checkSecret("GEMINI_API_KEY",  "AIza");
 checkSecret("SESSION_SECRET");
+checkSecret("RESEND_API_KEY",  "re_");
 // ─────────────────────────────────────────────────────────────────────────────
 
 app.listen(port, (err) => {

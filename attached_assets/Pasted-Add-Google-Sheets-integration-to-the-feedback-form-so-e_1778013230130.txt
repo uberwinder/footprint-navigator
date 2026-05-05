@@ -1,0 +1,46 @@
+Add Google Sheets integration to the feedback form so every 
+submission is written to the Navigator Demo Feedback spreadsheet 
+in addition to the local database.
+
+Install the googleapis package:
+npm install googleapis
+
+Add these environment secrets to the project:
+GOOGLE_SHEET_ID = 1b3Jkq4lsadF4k7pxlKhSjaNId29_2FruOOZjFMELgSo
+GOOGLE_SERVICE_ACCOUNT_EMAIL = footprint-feedback@footprint-navigator.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY = -----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDHYTj1Fz3LIrfK\nlS9FwuUd8PD+KEzU/FWdh4CnoAbQ8SAYkT+prfIelqp5TEQ0DtA+G44y0lRUAxXn\nsg6eY+2xh+O0EFHcKQe5Po15VNhJYeIkO1gCIoscMVDvNQLlNic8/Ge1USmpbSAV\n46EguXy3/v/KZHLqZeRYtJ+bz82j/vGZHyMmzx/KcHAaRbaPvVy1PE5cIIQXVMOy\nzZa6xLkwZioYehnpJ/DaswiPZGlmzAsrMxbgeLshpWI/8s1WxuttD0SoDCAHaaCQ\nkYr7SaeFwlZ0O9LGhuIbIuqSt/ls0o+HdjZS9l7Fdm3qb/s39c0NZ6WhBjLRZhoF\n3GVxBpNPAgMBAAECggEAF4Sh1dM8gEIjoNtRHK79HLeHjctOKM9s/+x0YhFvzGSs\n7wjvFAJHLZGDIVS8NNHMgY75iogh11kX0+E+dTN/XbIUS3CjX09dsF2vDXFTI/DO\nXoy7eGD/vL8ad2Tu5v+oyDpTt2EQA4KyRrK3lmcazY9gN8z6eyiysz33F8d+z8m1\nAmFsdnEo910lB27viMD0e+TtiIqh+hAhXCdFY5O3zubncJ34YfJQ5r4l/KEH/IS4\nO5KtznjhcX/k/+XSQx1H9AIJOoEhdddOiNCv9kby4eRm5H4qfDuZTOzjiCecn3sj\n5GCgfQ8YlV/S2bM3Yi1ybniLsRsQm8OiEFePd2D8KQKBgQDl0sxR65jJzEP86/CD\n3qeu2Q9EJbUPZ5zUD9Qzt8RtvgkDozOFvfgIR13PQb/sXpGw4tVLGLJMPgmyusDZ\nKVjdf9ZzfHPZnB8/6YjnsEOUTmkm9sVP03g65AAEF6kPN0QuWRFk4OuNuB1QsOiz\n1ONsJYvcqjy18l1hTEy4nDMyZwKBgQDeFr81tVrhyhy9eSRewyZLmDWJU+dXMMQw\n/1RFZRYBeqb8lS9/SsXYJfNTmrwph5EsZC+4PLdzfwIlL9Q/fAMBjGRwY3+jZFxM\nFWrMwUQP6PAVcrtG2ReCsCakz6F1bI1saCWSYyMvWYiYLp1Y/c9ZV2z5kpqbB1Pm\nTyxeKtQW2QKBgQDU2N4SILhobJ2q6HjgKJ3z+WOCIcoGcld0rxRAsbliSdXfYI6f\nFslYIYBoKuSs7QjRYcNYwY6fvfUNapighwKeYX8jhedlaoomjwsUSNLNz7DjPTiQ\nLbH0GKVLJP6V8QFcS3EolIaTwiikSrO5mTjnN/7IZ4HCoKyLKDcF4uQnkQKBgEqf\nsA4W6vu1UuTjgLIKtqJt+Yc0VyZ372RbVvCeX7+Ne/ChHD2UXVgcoF82PgViVQhq\nfZJVbHr1cT4XjSTrwYLSrqkI9clsHos+Iw273ufNqGY8j+rlZT33fHSig6kWGYsU\nj5NZlmgBmKEyAJL3baWid66AcUyoMKvRbKITmAI5AoGALVSnLwTvXXxKi1JKnBIh\ni/bgVRyZnCfeQ1u7aoLxz4QTAswW52EUxdKngtWwH0H+5Qc/XtVnNz9aIB1TIkHv\nyPusyMmiPRDsab3CayKh478U8EMcCvbf+rUSR0BPbFpBGRY3+MCca9P8T/Guy2CY\nsUzi12GS0aldMh5Nsdh4u08=\n-----END PRIVATE KEY-----\n
+
+In the feedback route server/routes/feedback.ts, after 
+successfully saving to the local database, also append a row 
+to the Google Sheet using the googleapis package.
+
+The sheet columns should be in this exact order:
+Column A: Submitted At (timestamp)
+Column B: First Name
+Column C: Last Name
+Column D: Work Email
+Column E: Company
+Column F: PDF Upload (rating 0-5)
+Column G: Sheet and Thumbnail Detection (rating 0-5)
+Column H: Keyword Search (rating 0-5)
+Column I: Length Measurement (rating 0-5)
+Column J: Area Measurement (rating 0-5)
+Column K: Perimeter Measurement (rating 0-5)
+Column L: Angle Measurement (rating 0-5)
+Column M: Navigator AI Chat (rating 0-5)
+Column N: Page Navigation (rating 0-5)
+Column O: Zoom and Pan (rating 0-5)
+Column P: Overall Experience (rating 0-5)
+Column Q: Open Feedback (free text)
+
+Also add a header row to the sheet if it is empty so the 
+columns are labeled correctly.
+
+If the Google Sheets write fails for any reason, log the 
+error but do not fail the overall feedback submission — 
+the database save should still succeed and return ok to 
+the user.
+
+After implementing push to GitHub and confirm it is working 
+by submitting a test feedback entry and showing me the row 
+that was written to the sheet.

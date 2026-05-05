@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PreviewMode from "./PreviewMode.jsx";
 import Workspace   from "./Workspace.jsx";
 import OnboardingBubble from "./OnboardingBubble.jsx";
+import FeedbackModal from "./FeedbackModal.jsx";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
@@ -26,8 +27,41 @@ export default function App() {
   const [isOcring,       setIsOcring]      = useState(false);
   const [ocrProgress,    setOcrProgress]   = useState({ page: 0, total: 0 });
 
-  const inputRef   = useRef(null);
-  const ocrAbortRef = useRef(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackDone, setFeedbackDone] = useState(false);
+
+  const inputRef        = useRef(null);
+  const ocrAbortRef     = useRef(null);
+  const feedbackDoneRef = useRef(false);
+  const leaveTimerRef   = useRef(null);
+
+  // Keep ref in sync so the event listener always sees fresh value
+  useEffect(() => { feedbackDoneRef.current = feedbackDone; }, [feedbackDone]);
+
+  // beforeunload approach: browser shows native "Leave site?" dialog;
+  // if user clicks Stay the page remains active and our setTimeout fires
+  // to show the custom modal. If they click Leave, pagehide fires first
+  // and we clear the timer so the modal never appears.
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (feedbackDoneRef.current) return;
+      e.preventDefault();
+      e.returnValue = ""; // required for Chrome to show the native dialog
+      leaveTimerRef.current = setTimeout(() => {
+        setShowFeedback(true);
+      }, 200);
+    };
+    const handlePageHide = () => {
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide",     handlePageHide);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide",     handlePageHide);
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    };
+  }, []);
 
   const reset = () => {
     if (ocrAbortRef.current) ocrAbortRef.current.abort();
@@ -141,8 +175,16 @@ export default function App() {
     else setError("Please drop a PDF document");
   };
 
+  const handleFeedbackClose = () => {
+    setShowFeedback(false);
+    setFeedbackDone(true);
+  };
+
   return (
     <div className="app">
+      {/* ── Feedback modal (triggered by tab close / beforeunload) ── */}
+      {showFeedback && <FeedbackModal onClose={handleFeedbackClose} />}
+
       {/* ── Onboarding bubble (landing + loading screens) ── */}
       {(appState === "idle" || appState === "loading") && <OnboardingBubble />}
 

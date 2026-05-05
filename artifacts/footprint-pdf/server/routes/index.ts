@@ -3,6 +3,7 @@ import uploadRouter from "./upload.js";
 import chatRouter from "./chat.js";
 import summarizeRouter from "./summarize.js";
 import onboardRouter from "./onboard.js";
+import feedbackRouter from "./feedback.js";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,7 @@ router.use(uploadRouter);
 router.use(chatRouter);
 router.use(summarizeRouter);
 router.use(onboardRouter);
+router.use(feedbackRouter);
+
 
 export default router;
