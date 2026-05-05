@@ -86,6 +86,7 @@ export default function App() {
     formData.append("file", selected);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/pdf-api/upload");
+    xhr.timeout = 300_000; // 5-minute hard cap
     const startTime = Date.now();
 
     xhr.upload.addEventListener("progress", (event) => {
@@ -122,7 +123,7 @@ export default function App() {
         setPageTexts(texts);
         setPageTitles(titles);
         setPageSheets(sheets);
-        setAppState("preview");
+        setAppState("workspace");
 
         if (avgChars < OCR_CHAR_THRESHOLD && data.pages > 0) {
           setIsOcring(true);
@@ -151,6 +152,10 @@ export default function App() {
 
     xhr.addEventListener("error", () => {
       setError("Network error during upload");
+      setFile(null); setAppState("idle");
+    });
+    xhr.addEventListener("timeout", () => {
+      setError("Upload timed out — the document may be too large or complex. Try a smaller PDF.");
       setFile(null); setAppState("idle");
     });
     xhr.addEventListener("abort", () => setAppState("idle"));
