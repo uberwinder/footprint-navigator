@@ -87,6 +87,12 @@ const FEATURES = [
   },
 ];
 
+const OPENING_TELL_MORE_PROMPT =
+  "You are Navigator, the AI assistant for Footprint Navigator. " +
+  "A new user has just arrived at the demo. In 3–4 sentences, explain what Footprint Navigator is, " +
+  "what it is used for, who it is built for, and what they should expect from this demo. " +
+  "Be conversational, concise, and engaging.";
+
 const TW_INTERVAL = 18; // ms per character ≈ 55 chars/sec
 
 export default function WorkspaceOnboarding({ onClose }) {
@@ -141,8 +147,8 @@ export default function WorkspaceOnboarding({ onClose }) {
   useEffect(() => {
     if (phase !== "opening") return;
     typewrite(WELCOME_TEXT, () => {
-      setFeatureIndex(0);
-      setPhase("feature-intro");
+      // Stop and wait — user must click a button to proceed
+      setPhase("opening-buttons");
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
@@ -153,6 +159,13 @@ export default function WorkspaceOnboarding({ onClose }) {
     typewrite(FEATURES[featureIndex].intro, () => setPhase("chips"));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, featureIndex]);
+
+  // ── Phase: opening-more — typewrite AI "tell me more" response ──────────────
+  useEffect(() => {
+    if (phase !== "opening-more" || !fetchedText) return;
+    typewrite(fetchedText, () => setPhase("opening-ready"));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, fetchedText]);
 
   // ── Phase: tell-more — typewrite AI response once it arrives ────────────────
   useEffect(() => {
@@ -179,6 +192,22 @@ export default function WorkspaceOnboarding({ onClose }) {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
+
+  // ── Opening handlers ────────────────────────────────────────────────────────
+  const handleOpeningReady = useCallback(() => {
+    setFeatureIndex(0);
+    setPhase("feature-intro");
+  }, []);
+
+  const handleOpeningTellMore = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
+    setFetchedText("");
+    setPhase("opening-more");
+    const answer = await callAI(OPENING_TELL_MORE_PROMPT, []);
+    setLoading(false);
+    setFetchedText(answer);
+  }, [loading, callAI]);
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const advanceFeature = useCallback(() => {
@@ -247,7 +276,7 @@ export default function WorkspaceOnboarding({ onClose }) {
 
   if (phase === "done") return null;
 
-  const isLoadingAI     = (phase === "tell-more" || phase === "follow-up") && loading;
+  const isLoadingAI     = (phase === "opening-more" || phase === "tell-more" || phase === "follow-up") && loading;
   const showFeatureBadge = ["chips", "tell-more", "yes-no", "follow-up-input", "follow-up"].includes(phase);
 
   return (
@@ -282,6 +311,15 @@ export default function WorkspaceOnboarding({ onClose }) {
 
         {/* Action row */}
         <div className="wob-actions">
+          {phase === "opening-buttons" && (
+            <>
+              <button className="wob-btn wob-btn--ghost"   onClick={handleOpeningReady}>I'm Ready</button>
+              <button className="wob-btn wob-btn--primary" onClick={handleOpeningTellMore}>Tell Me More</button>
+            </>
+          )}
+          {phase === "opening-ready" && (
+            <button className="wob-btn wob-btn--primary" onClick={handleOpeningReady}>I'm Ready</button>
+          )}
           {phase === "chips" && (
             <>
               <button className="wob-btn wob-btn--ghost"   onClick={handleGotIt}>Got it</button>
