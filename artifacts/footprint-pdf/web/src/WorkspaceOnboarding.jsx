@@ -126,9 +126,9 @@ export default function WorkspaceOnboarding({ onClose }) {
         body: JSON.stringify({ question, history: hist }),
       });
       const data = await res.json();
-      return (data.answer || "I'm not sure — try asking another way.").trim();
+      return (data.answer || "That is a great question — I may not have enough context right now. Try asking Navigator directly using the chat panel after the tour, or reach us at info@footprintnavigator.com.").trim();
     } catch {
-      return "Something went wrong. Please try again.";
+      return "That is a great question — I may not have enough context right now. Try asking Navigator directly using the chat panel after the tour, or reach us at info@footprintnavigator.com.";
     }
   }, []);
 
