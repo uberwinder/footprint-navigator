@@ -47,7 +47,7 @@ function hasReadyPrompt(text) {
 }
 
 export default function OnboardingBubble() {
-  const [open,         setOpen]         = useState(false);
+  const [open,         setOpen]         = useState(true);
   const [step,         setStep]         = useState(0);
   const [tourStarted,  setTourStarted]  = useState(false);
   const [tourDone,     setTourDone]     = useState(false);
@@ -156,17 +156,6 @@ export default function OnboardingBubble() {
 
   return (
     <div className="ob-root">
-      {/* Minimised trigger */}
-      {!open && (
-        <button className="ob-trigger" onClick={() => setOpen(true)} aria-label="Open Navigator chat">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          <span>Ask Navigator</span>
-        </button>
-      )}
-
       {/* Chat panel */}
       {open && (
         <div className="ob-panel" role="dialog" aria-label="Navigator onboarding chat">

@@ -1518,24 +1518,6 @@ button { font-family: inherit; }
   gap: 0;
   font-family: 'Montserrat', system-ui, sans-serif;
 }
-.ob-trigger {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #007BFF;
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  padding: 10px 18px 10px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: 'Montserrat', system-ui, sans-serif;
-  cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0,123,255,0.4);
-  transition: background .15s, transform .1s;
-  letter-spacing: .2px;
-}
-.ob-trigger:hover { background: #0062cc; transform: translateY(-1px); }
 .ob-panel {
   width: 340px;
   max-height: 520px;
