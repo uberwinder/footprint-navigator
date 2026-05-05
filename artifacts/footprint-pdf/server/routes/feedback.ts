@@ -70,6 +70,37 @@ const pool = process.env.DATABASE_URL
   }
 })();
 
+// ── Google Sheets credentials ────────────────────────────────────────────────
+const GS_CLIENT_EMAIL = "footprint-feedback@footprint-navigator.iam.gserviceaccount.com";
+const GS_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCiVRek4qhTblCQ
+aD+sjWQ7xAro2HCCR2qorjAQBOI4cp65VFGX4jIzcBeNVtEergh3gt53TQWunpjX
+bd6Vp4ZzEj53qQIulE2QTj2aSdS1bCGZCGXbCY90KNmxa5XuKE+pro424b/hZU0z
+N/MVePZU3NKHYIfX9DwsIkteK280CbvyH07lsJAp7qNyYZmoYoo76JKwnfPMqIvj
+9c9I2f5D9+Z/JS9VrYSJq1uORc5Jvw/HPqVkhihb3ABstjrLlyMZX037b/VmuWrO
+I7wbSLzPBUCxQVARt0TjrmXIfJVZzKT6m+xGav6ISrjry3qTTRX+DVBANOsGOWOi
+oHLTSbavAgMBAAECggEALQouAr4ulON1L/P0wsQCLQDyQ/OVl9gH1GBsDm3EdIP8
+3Q/ziZAlfJcbucf+QqRnzfz+C5zPuEjhwFgIG369M506vsmiRNk6AhFrTy0v+txT
+IBov5IutBT42VF803LzLiZlYdQrCyd9pAY6DABCtTBNuyEf0uOrXbSlgvvKPKqEd
+hqNgtwQlH86Q/xHEjYi5PwKRcgmiq6wgAfj1QyKZZx9R71VsYOqsXbf3M1OfPj2V
+aOGZf5qVPA4zVKgiygBD4HzGy7cO5tpEDfJ4A9JNJdZW75hcKHTst4VOeMgQIlcx
+flO8v81T6+PyD1LhqCk+jf9W69TLx5akTKWxEvM7+QKBgQDV+KeNkc+/QcCsJgi+
+X2o19D1BpYKpouXM72HcBbIrlQ+SLoLPRMjtEjCQb6hMqUDmwPj/O+HXwwmIUGjm
+b+TIj9O/uIK6Fof4yRhJPu8VCG13uPZPV61VTHamj0fV4J9g/9Hc7Ox5fYnmeqSC
+0rsKJVIDEER1qmE2pDZfgciv2QKBgQDCN9LeF4glfEN+v1otolZ0mCVJul8E9kVQ
+9tS8svMMZxwuLj/CDlRzMckSd2B9AQadrI4w9TCq6rnTdlJdCSjZRvb+SSbKchI4
+W36ghVp+VUmok2MEfQGph2D/ZmQhiGfFm+VHsSWoqkJ7Am5eQGgNs5uMU+vfzzaj
+a3Q5HFMNxwKBgCAI/mz/q67i1Unw19ZIysoRKyqs8Qcc0HMCVBBw+d/0jURBmmwV
+zE9SLdsyHGx92q2xrpXoDUQUe1ThVRNLJWGxxu4pXckmnmztDqnItlrbzCfklVwD
+sHvY2trNEOBApRwMsQr2neECnqbXLdI4YrB+Le0vflBvleZsZ4edEsLhAoGAeslC
+JijoaRKDtWkSgRFF6VabFF6gXgm4TvSOEHJuGGRDu6p/opbeqylJfsQ8Gyt/3EVQ
+bAFHcHcPXnJKpgj5a0xjMOZcgNbXUAwAJUnJqV8QP2RW0Gqbl2tAVpeMLGsJeDQU
+I1wKe/SQLSafUjUT072+VFxmHkvpti1kAAs5MtcCgYB1jfnVqz1gYn7wO+2w0BSM
+TdJWCmq8s/8mFKwjFqHt8E0lI4iTygyMRmx7savkI6xBQbj309GfzT6jLJIm4/nG
+4sL8lV3bm8LRduvgOG6H6X+5xDTTgalzxJWLayvQFeZeuBNVKUgSNMwqJuGw1+Eu
+DFxNfUcLfxMidwnSfDNsSA==
+-----END PRIVATE KEY-----`;
+
 // ── Google Sheets helper ─────────────────────────────────────────────────────
 async function appendToSheet(data: {
   firstName?: string;
@@ -80,16 +111,14 @@ async function appendToSheet(data: {
   openFeedback?: string;
 }): Promise<void> {
   const sheetId = process.env.GOOGLE_SHEET_ID;
-  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const rawKey = process.env.GOOGLE_PRIVATE_KEY;
 
-  if (!sheetId || !clientEmail || !rawKey) {
-    console.log("[feedback] Google Sheets env vars not set — skipping");
+  if (!sheetId) {
+    console.log("[feedback] GOOGLE_SHEET_ID not set — skipping Sheets");
     return;
   }
 
-  // Unescape literal \n sequences that may arrive from env var storage
-  const privateKey = rawKey.replace(/\\n/g, "\n");
+  const privateKey = GS_PRIVATE_KEY;
+  const clientEmail = GS_CLIENT_EMAIL;
 
   const auth = new google.auth.JWT({
     email:  clientEmail,
