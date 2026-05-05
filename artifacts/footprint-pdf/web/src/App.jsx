@@ -61,6 +61,7 @@ export default function App() {
 
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackDone, setFeedbackDone] = useState(false);
+  const [onboardDone,  setOnboardDone]  = useState(false);
 
   const inputRef        = useRef(null);
   const ocrAbortRef     = useRef(null);
@@ -238,8 +239,8 @@ export default function App() {
       {/* ── Feedback modal (triggered by tab close / beforeunload) ── */}
       {showFeedback && <FeedbackModal onClose={handleFeedbackClose} />}
 
-      {/* ── Onboarding bubble (workspace only) ── */}
-      {appState === "workspace" && <OnboardingBubble />}
+      {/* ── Onboarding bubble — only after tour is closed/completed ── */}
+      {appState === "workspace" && onboardDone && <OnboardingBubble />}
 
       {/* ── Drop zone ── */}
       {appState === "idle" && (
@@ -338,6 +339,8 @@ export default function App() {
             isOcring={isOcring}
             ocrProgress={ocrProgress}
             onNewFile={reset}
+            onboardDone={onboardDone}
+            onOnboardDone={() => setOnboardDone(true)}
           />
         </WorkspaceErrorBoundary>
       )}

@@ -577,7 +577,7 @@ const TOOL_BTNS = [
 
 // ── Workspace ────────────────────────────────────────────────────────────────
 
-export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile }) {
+export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone }) {
   // PDF
   const [pdfDoc,   setPdfDoc]   = useState(null);
   const [numPages, setNumPages] = useState(meta.pages || 0);
@@ -648,7 +648,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const [measurePoints,     setMeasurePoints]     = useState([]);   // {x, y} in document coordinates
   const [measurements,      setMeasurements]      = useState([]);   // completed measurements
   const [showMeasurePanel,  setShowMeasurePanel]  = useState(false);
-  const [onboardDone,       setOnboardDone]       = useState(false);
   // Snap to Content
   const [snapEnabled,  setSnapEnabled]  = useState(() => localStorage.getItem("navigator-snap-enabled") !== "false");
   const [snapSettings, setSnapSettings] = useState(() => {
@@ -2039,7 +2038,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   return (
     <div className="ws-root">
       {/* ── Workspace Onboarding Tour ── */}
-      {!onboardDone && <WorkspaceOnboarding onClose={() => setOnboardDone(true)} />}
+      {!onboardDone && <WorkspaceOnboarding onClose={onOnboardDone} />}
 
       {/* ── Menu Bar ── */}
       <div className="ws-menubar" ref={menuBarRef}>
