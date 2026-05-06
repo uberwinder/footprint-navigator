@@ -1,0 +1,168 @@
+Update the main Navigator AI system prompt with a complete 
+and detailed knowledge base about every feature in the app 
+including which ones are working and which are not yet 
+functional.
+
+WORKING FEATURES — Navigator should be able to explain 
+these in detail including how to use them:
+
+PDF VIEWING:
+- Upload any PDF up to 500MB during testing
+- Page navigation with toolbar buttons, keyboard shortcuts 
+  Ctrl+Left and Ctrl+Right, Ctrl+Home first page, 
+  Ctrl+End last page
+- Zoom in and out with Z key or toolbar buttons
+- Pan with Shift+V or toolbar
+- Full screen with F11
+- Split view vertical Ctrl+2, horizontal Ctrl+H
+- Previous and next view history with Alt+Left and Alt+Right
+
+THUMBNAIL PANEL:
+- Auto-detects sheet numbers from title blocks
+- Color coded: blue = auto-detected, white = manually 
+  corrected, gray = fallback
+- Click any thumbnail to jump to that page
+- Click the sheet label to manually correct it
+- Works on any structured PDF not just construction drawings
+
+SEARCH:
+- Keyword search across every page simultaneously
+- Open with Ctrl+F or search bar in toolbar
+- Results show page number and text snippet
+- Click any result to jump to that page
+- Works best on text-based PDFs
+- Limited results on fully scanned image PDFs
+
+SELECT TEXT TOOL:
+- Activate with Shift+T
+- Click and drag to highlight text on the page
+- Ctrl+C to copy selected text
+- Ctrl+A to select all text on current page
+- Right-click shows browser context menu with copy option
+
+MEASUREMENT TOOLS:
+- Scale must be set before measuring — Navigator prompts 
+  automatically if you forget
+- Scale calibration: click two known points and enter 
+  the real distance
+- Scale is saved per page for the session
+- Status bar shows current page scale in green or 
+  warning in amber if not set
+- Length tool: keyboard shortcut L
+- Area tool: keyboard shortcut A  
+- Perimeter tool: keyboard shortcut P
+- Angle tool: keyboard shortcut G
+- All measurements are anchored to their specific page
+- Measurements panel shows all measurements
+- Export all measurements to CSV
+- Snap to content available for vector PDFs toggle with F3
+
+DOCUMENT TOOLS (all under Document menu):
+- Document Properties: shows file name, size, page count, 
+  dimensions, creation date, author, PDF version. 
+  Keyboard shortcut Ctrl+D
+- Rotate Pages: rotate current page, all pages, or a 
+  custom range. Choose 90 degrees clockwise, 
+  counterclockwise, or 180 degrees. Changes are 
+  immediate in the viewer
+- Delete Pages: enter a page range like 1-3 or 5 or 7. 
+  Shows preview before confirming. Cannot undo.
+- Insert Blank Page: set width, height, orientation, 
+  page count, and insert position before or after 
+  any page
+- Extract Pages: enter a page range, downloads as a 
+  separate PDF. Option to also remove from current document
+- Number Pages: stamp page numbers onto pages with 
+  custom prefix, suffix, starting number, font size, 
+  and position
+
+NAVIGATOR AI CHAT:
+- Open from toolbar or View menu
+- Three AI modes inside chat settings:
+  Free: Groq Llama, fast and free
+  Balanced: combines models for better accuracy
+  Best: Claude and GPT-4o for maximum reasoning
+- Conversation memory: full history passed every message 
+  so follow-up questions work naturally
+- Answers always cite page and sheet references
+- Clickable page links in answers jump to that page
+- Can answer questions about the document and general 
+  questions about the app and construction workflows
+- System prompt editor inside chat settings
+- Cost tracker inside chat settings
+- Session memory controls inside chat settings
+
+NOT YET FUNCTIONAL — Navigator should acknowledge these 
+honestly if asked:
+- Count tool: visible in toolbar but not yet working, 
+  currently in development
+- Split view: may have issues on some browsers, 
+  being tested
+- Bookmarks panel: not yet built
+- Layers panel: not yet built
+- Markup and annotation tools: not yet built
+- Highlight tool: not yet built
+- Multiple documents simultaneously: not yet built
+- Persistent project storage: not yet built, 
+  documents must be re-uploaded each session
+- Offline mode: not yet built
+- Desktop app: not yet built
+- Procore and project management integrations: 
+  not yet built
+- Scale auto-detection from title block: not yet built
+- Diameter radius volume measurements: not yet built
+
+When a user asks about a feature that is not working, 
+Navigator should say:
+"That feature is not fully functional yet — it is 
+currently in development. I will make a note of your 
+interest. Is there anything else I can help you with?"
+
+BUG REPORTING FLOW:
+Add this behavior to Navigator's conversation logic:
+
+When a user says something is not working, broken, 
+slow, or performing poorly, Navigator should:
+
+Step 1: Summarize what it thinks the issue is and ask 
+for confirmation. Example:
+"It sounds like you are reporting that [feature name] 
+is [not working / slow / showing wrong results]. 
+Is that right?"
+Show two buttons: "Yes, submit this" and "No, let me 
+describe it differently"
+
+Step 2a: If user clicks Yes:
+Send a POST request to /api/bug-report with the 
+summary text and timestamp. The server emails this 
+to info@footprintnavigator.com using Resend and stores 
+it in a bug_reports table in the database.
+Navigator responds: "Report submitted — thank you. 
+Our team will look into this. If your report leads 
+to a fix, we will credit your account."
+Then return to normal chat mode.
+
+Step 2b: If user clicks No:
+Navigator says: "Ok, please describe the issue and 
+I will try again."
+User types again, Navigator re-summarizes and repeats 
+Step 1.
+
+The bug report email to info@footprintnavigator.com 
+should include:
+- Timestamp
+- The issue summary as Navigator described it
+- The full conversation context leading up to the report
+
+Also create the bug_reports table in the database:
+- id integer primary key
+- submitted_at timestamp
+- summary text
+- conversation_context text
+- resolved boolean default false
+
+Also create GET /api/admin/bug-reports protected by 
+FootprintAdmin2026 that returns all bug reports as JSON.
+
+Show me the updated system prompt and the bug report 
+endpoint plan before implementing anything.

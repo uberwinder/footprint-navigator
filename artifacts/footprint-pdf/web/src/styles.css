@@ -1926,3 +1926,103 @@ button { font-family: inherit; }
   margin: 0;
   max-width: 340px;
 }
+
+/* ── Document Tool Form Controls ─────────────────────────────── */
+.ws-doc-form { display: flex; flex-direction: column; gap: 14px; }
+.ws-doc-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ws-doc-form-row label {
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
+  letter-spacing: .2px;
+}
+.ws-doc-form-select {
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 7px 10px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color .15s;
+  cursor: pointer;
+}
+.ws-doc-form-select:focus { border-color: #007BFF; }
+.ws-doc-form-row-h {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.ws-doc-form-row-h .ws-doc-form-row { flex: 1; }
+.ws-doc-radio-group {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.ws-doc-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #ccc;
+  cursor: pointer;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.ws-doc-radio-group input[type="radio"] { accent-color: #007BFF; cursor: pointer; }
+.ws-doc-warning {
+  background: rgba(229, 57, 53, .12);
+  border: 1px solid rgba(229, 57, 53, .35);
+  border-radius: 5px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ef9a9a;
+}
+.ws-doc-preview {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 5px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #aaa;
+  min-height: 32px;
+  line-height: 1.6;
+}
+.ws-doc-btn-delete {
+  background: #c62828;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+.ws-doc-btn-delete:hover { background: #b71c1c; }
+.ws-doc-btn-delete:disabled { background: #555; cursor: default; }
+.ws-doc-processing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #888;
+  padding: 4px 0;
+}
+.ws-doc-spinner {
+  width: 16px; height: 16px;
+  border: 2px solid #333;
+  border-top-color: #007BFF;
+  border-radius: 50%;
+  animation: ws-spin .7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes ws-spin { to { transform: rotate(360deg); } }

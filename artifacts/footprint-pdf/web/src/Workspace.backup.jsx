@@ -5,9 +5,6 @@ import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
-// ── Feature flag — set false to hide entire Document menu instantly ───────────
-const ENABLE_DOCUMENT_TOOLS = true;
-
 // ── Session Memory (module-level, cleared when component mounts) ─────────────
 const _sessionMemory = [];
 const SESSION_MEMORY_MAX = 50;
@@ -52,38 +49,6 @@ function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1_048_576) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1_048_576).toFixed(2)} MB`;
-}
-
-// ── Document-tool utilities ───────────────────────────────────────────────────
-
-function parsePageRange(input, maxPage) {
-  const pages = new Set();
-  for (const part of input.split(",")) {
-    const t = part.trim();
-    const m = t.match(/^(\d+)\s*-\s*(\d+)$/);
-    if (m) {
-      const lo = parseInt(m[1], 10), hi = parseInt(m[2], 10);
-      for (let i = Math.min(lo, hi); i <= Math.max(lo, hi); i++) {
-        if (i >= 1 && i <= maxPage) pages.add(i);
-      }
-    } else if (/^\d+$/.test(t)) {
-      const n = parseInt(t, 10);
-      if (n >= 1 && n <= maxPage) pages.add(n);
-    }
-  }
-  return [...pages].sort((a, b) => a - b);
-}
-
-async function getPdfLib() {
-  return import("pdf-lib");
-}
-
-function formatPdfDate(dateStr) {
-  if (!dateStr) return null;
-  // PDF date format: D:YYYYMMDDHHmmSSOHH'mm'
-  const m = dateStr.match(/D:(\d{4})(\d{2})(\d{2})/);
-  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-  return dateStr.slice(0, 20);
 }
 
 const MODEL_DISPLAY = {
@@ -170,21 +135,20 @@ const MENUS = [
       { label: "Full Screen",       action: "fullscreen",      note: "F11" },
     ],
   },
-  ...(ENABLE_DOCUMENT_TOOLS ? [{
+  {
     id: "document", label: "Document",
     items: [
-      { label: "Document Properties", action: "docProperties",    note: "Ctrl+D" },
-      "sep",
-      { label: "Rotate Pages",        action: "docRotatePages" },
-      { label: "Delete Pages",        action: "docDeletePages" },
-      { label: "Insert Blank Page",   action: "docInsertBlankPage" },
-      { label: "Extract Pages",       action: "docExtractPages" },
-      { label: "Number Pages",        action: "docNumberPages" },
+      { label: "Document Properties", action: "docProperties" },
       "sep",
       { label: "OCR This Document",   action: "ocrDocument" },
       { label: "Re-index Document",   action: "reindex" },
+      "sep",
+      { label: "Rotate Pages",        action: "cs-rotatepages" },
+      { label: "Extract Pages",       action: "cs-extractpages" },
+      "sep",
+      { label: "Page Setup",          action: "cs-pagesetup" },
     ],
-  }] : []),
+  },
   {
     id: "tools", label: "Tools",
     items: [
@@ -679,29 +643,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const [toasts,     setToasts]     = useState([]);
   const [modal,      setModal]      = useState(null); // null | { type: string }
   const [saveAsName, setSaveAsName] = useState("");
-  // Document-tool modal form state
-  const [docMeta,          setDocMeta]          = useState(null); // fetched PDF metadata
-  const [docProcessing,    setDocProcessing]    = useState(false);
-  const [rotateScope,      setRotateScope]      = useState("current"); // current|all|range
-  const [rotateRangeInput, setRotateRangeInput] = useState("");
-  const [rotateDir,        setRotateDir]        = useState("cw"); // cw|ccw|180
-  const [deleteRangeInput, setDeleteRangeInput] = useState("");
-  const [insertWidth,      setInsertWidth]      = useState("8.5");
-  const [insertHeight,     setInsertHeight]     = useState("11");
-  const [insertOrient,     setInsertOrient]     = useState("portrait");
-  const [insertCount,      setInsertCount]      = useState("1");
-  const [insertPos,        setInsertPos]        = useState("after"); // before|after
-  const [insertWhere,      setInsertWhere]      = useState("last"); // first|last|page
-  const [insertWherePage,  setInsertWherePage]  = useState("1");
-  const [extractRangeInput,setExtractRangeInput]= useState("");
-  const [extractRemove,    setExtractRemove]    = useState(false);
-  const [numberPrefix,     setNumberPrefix]     = useState("");
-  const [numberSuffix,     setNumberSuffix]     = useState("");
-  const [numberStart,      setNumberStart]      = useState("1");
-  const [numberFontSize,   setNumberFontSize]   = useState("10");
-  const [numberPosition,   setNumberPosition]   = useState("bottom-center");
-  const [numberScope,      setNumberScope]      = useState("all");
-  const [numberRangeInput, setNumberRangeInput] = useState("");
   // Measurement tools
   const [measureTool,       setMeasureTool]       = useState(null); // "length"|"area"|"perimeter"|"count"|null
   const [measurePoints,     setMeasurePoints]     = useState([]);   // {x, y} in document coordinates
@@ -767,7 +708,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const menuBarRef          = useRef(null);
   const fileInputRef        = useRef(null);
   const pendingScrollAdjRef = useRef(null); // { docX, docY, cx, cy, ratio }
-  const pdfBytesRef         = useRef(null); // mutable bytes for pdf-lib ops
 
   // Mirror current page/scale into refs for use inside event handlers
   const pageNumRef = useRef(pageNum);
@@ -786,9 +726,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     (async () => {
       try {
         const buffer = await file.arrayBuffer();
-        const bytes  = new Uint8Array(buffer);
-        pdfBytesRef.current = bytes;
-        const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+        const doc = await pdfjsLib.getDocument({ data: buffer }).promise;
         if (cancelled) { doc.destroy(); return; }
         setPdfDoc(doc);
         setNumPages(doc.numPages);
@@ -820,19 +758,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     const h = canvasWrapRef.current.clientHeight - 64;
     return Math.max(0.1, Math.min(w / vp.width, h / vp.height));
   }, []);
-
-  // ── Reload PDF from modified bytes (after pdf-lib ops) ─────────────────────
-
-  const reloadPdfFromBytes = useCallback(async (newBytes) => {
-    pdfBytesRef.current = newBytes;
-    const doc = await pdfjsLib.getDocument({ data: newBytes.slice() }).promise;
-    setPdfDoc(doc);
-    setNumPages(doc.numPages);
-    setPageNum((p) => Math.min(p, doc.numPages));
-    setModal(null);
-    setDocProcessing(false);
-    showToast("Document updated");
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -1177,9 +1102,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       // Find (Ctrl+F)
       if (!inInput && ctrl && (k === "f" || k === "F")) { e.preventDefault(); setActivePanelTab("search"); setPanelOpen(true); return; }
 
-      // Document Properties (Ctrl+D)
-      if (ctrl && (k === "d" || k === "D")) { e.preventDefault(); setDocMeta(null); setModal({ type: "docProps" }); return; }
-
       // Page navigation
       if (ctrl && k === "Home") { e.preventDefault(); setPageNum(1); return; }
       if (ctrl && k === "End")  { e.preventDefault(); setPageNum(numPages || meta.pages); return; }
@@ -1436,23 +1358,11 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     else if (action === "fullscreen")   { if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); }
 
     // Document
-    else if (action === "docProperties") {
-      setDocMeta(null);
-      setModal({ type: "docProps" });
-      if (pdfDoc) {
-        try {
-          const { info } = await pdfDoc.getMetadata();
-          setDocMeta(info);
-        } catch { /* metadata unavailable */ }
-      }
-    }
-    else if (action === "docRotatePages")    { setRotateScope("current"); setRotateRangeInput(""); setRotateDir("cw"); setModal({ type: "docRotatePages" }); }
-    else if (action === "docDeletePages")    { setDeleteRangeInput(""); setModal({ type: "docDeletePages" }); }
-    else if (action === "docInsertBlankPage"){ setInsertWidth("8.5"); setInsertHeight("11"); setInsertOrient("portrait"); setInsertCount("1"); setInsertPos("after"); setInsertWhere("last"); setInsertWherePage("1"); setModal({ type: "docInsertBlankPage" }); }
-    else if (action === "docExtractPages")   { setExtractRangeInput(""); setExtractRemove(false); setModal({ type: "docExtractPages" }); }
-    else if (action === "docNumberPages")    { setNumberPrefix(""); setNumberSuffix(""); setNumberStart("1"); setNumberFontSize("10"); setNumberPosition("bottom-center"); setNumberScope("all"); setNumberRangeInput(""); setModal({ type: "docNumberPages" }); }
+    else if (action === "docProperties")   setModal({ type: "docProps" });
     else if (action === "ocrDocument")     showToast("OCR — Coming Soon");
     else if (action === "reindex")         showToast("Re-indexing — reload the document to refresh the text index");
+    else if (action === "cs-rotatepages")  showToast("Rotate Pages — Coming Soon");
+    else if (action === "cs-extractpages") showToast("Extract Pages — Coming Soon");
     else if (action === "cs-scalecal") {
       prevToolRef.current = currentTool;
       setCalibMode(true);
@@ -2994,14 +2904,11 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
             </div>
             <div className="ws-modal-body">
               {[
-                ["Filename",       meta.filename],
-                ["File Size",      formatBytes(file?.size || 0)],
-                ["Pages",          String(numPages || meta.pages || "—")],
-                ["Dimensions",     pageDims || "—"],
-                ["PDF Version",    docMeta?.PDFFormatVersion ? `PDF ${docMeta.PDFFormatVersion}` : "—"],
-                ["Author",         docMeta?.Author || "—"],
-                ["Creation Date",  docMeta?.CreationDate ? formatPdfDate(docMeta.CreationDate) : "—"],
-                ["Producer",       docMeta?.Producer || "—"],
+                ["Filename",   meta.filename],
+                ["Pages",      String(numPages || meta.pages || "—")],
+                ["File Size",  formatBytes(file?.size || 0)],
+                ["Dimensions", pageDims || "—"],
+                ["Scale",      scale ? `${Math.round(scale * 100)}%` : "Not Set"],
               ].map(([label, val]) => (
                 <div key={label} className="ws-modal-prop-row">
                   <span className="ws-modal-prop-label">{label}</span>
@@ -3011,416 +2918,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
             </div>
             <div className="ws-modal-footer">
               <button className="ws-settings-save" onClick={() => setModal(null)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Rotate Pages ── */}
-      {modal?.type === "docRotatePages" && (
-        <div className="ws-overlay" onClick={() => { if (!docProcessing) setModal(null); }}>
-          <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ws-modal-header">
-              <span className="ws-modal-title">Rotate Pages</span>
-              <button className="ws-modal-close" onClick={() => setModal(null)} disabled={docProcessing}>×</button>
-            </div>
-            <div className="ws-modal-body">
-              <div className="ws-doc-form">
-                <div className="ws-doc-form-row">
-                  <label>Pages to rotate</label>
-                  <div className="ws-doc-radio-group">
-                    <label><input type="radio" name="rotScope" value="current" checked={rotateScope==="current"} onChange={(e)=>setRotateScope(e.target.value)}/> Current Page</label>
-                    <label><input type="radio" name="rotScope" value="all"     checked={rotateScope==="all"}     onChange={(e)=>setRotateScope(e.target.value)}/> All Pages</label>
-                    <label><input type="radio" name="rotScope" value="range"   checked={rotateScope==="range"}   onChange={(e)=>setRotateScope(e.target.value)}/> Page Range</label>
-                  </div>
-                </div>
-                {rotateScope === "range" && (
-                  <div className="ws-doc-form-row">
-                    <label>Page range (e.g. 1-3, 5, 7)</label>
-                    <input className="ws-modal-input" value={rotateRangeInput} onChange={(e)=>setRotateRangeInput(e.target.value)} placeholder="1-3, 5, 7"/>
-                  </div>
-                )}
-                <div className="ws-doc-form-row">
-                  <label>Rotation</label>
-                  <select className="ws-doc-form-select" value={rotateDir} onChange={(e)=>setRotateDir(e.target.value)}>
-                    <option value="cw">90° Clockwise</option>
-                    <option value="ccw">90° Counterclockwise</option>
-                    <option value="180">180°</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="ws-modal-footer">
-              {docProcessing ? <div className="ws-doc-processing"><div className="ws-doc-spinner"/><span>Rotating…</span></div> : <>
-                <button className="ws-settings-save" onClick={async () => {
-                  if (!pdfBytesRef.current) return;
-                  setDocProcessing(true);
-                  try {
-                    const { PDFDocument, degrees } = await getPdfLib();
-                    const pdfDoc2 = await PDFDocument.load(pdfBytesRef.current);
-                    const total = pdfDoc2.getPageCount();
-                    let pages;
-                    if (rotateScope === "current") pages = [pageNum - 1];
-                    else if (rotateScope === "all") pages = Array.from({length: total}, (_, i) => i);
-                    else pages = parsePageRange(rotateRangeInput, total).map(p => p - 1);
-                    const deg = rotateDir === "cw" ? 90 : rotateDir === "ccw" ? -90 : 180;
-                    for (const idx of pages) {
-                      const pg = pdfDoc2.getPage(idx);
-                      pg.setRotation(degrees((pg.getRotation().angle + deg + 360) % 360));
-                    }
-                    const newBytes = await pdfDoc2.save();
-                    await reloadPdfFromBytes(newBytes);
-                  } catch (err) {
-                    showToast("Rotate failed: " + (err?.message || err));
-                    setDocProcessing(false);
-                  }
-                }}>Apply</button>
-                <button className="ws-settings-reset" onClick={() => setModal(null)}>Cancel</button>
-              </>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Delete Pages ── */}
-      {modal?.type === "docDeletePages" && (() => {
-        const preview = deleteRangeInput.trim()
-          ? parsePageRange(deleteRangeInput, numPages)
-          : [];
-        return (
-          <div className="ws-overlay" onClick={() => { if (!docProcessing) setModal(null); }}>
-            <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
-              <div className="ws-modal-header">
-                <span className="ws-modal-title">Delete Pages</span>
-                <button className="ws-modal-close" onClick={() => setModal(null)} disabled={docProcessing}>×</button>
-              </div>
-              <div className="ws-modal-body">
-                <div className="ws-doc-form">
-                  <div className="ws-doc-form-row">
-                    <label>Pages to delete (e.g. 1-3, 5, 7) — document has {numPages} page{numPages !== 1 ? "s" : ""}</label>
-                    <input className="ws-modal-input" value={deleteRangeInput} onChange={(e)=>setDeleteRangeInput(e.target.value)} placeholder="e.g. 1-3, 5, 7" autoFocus/>
-                  </div>
-                  {preview.length > 0 && (
-                    <div className="ws-doc-form-row">
-                      <label>Pages that will be deleted ({preview.length})</label>
-                      <div className="ws-doc-preview">{preview.join(", ")}</div>
-                    </div>
-                  )}
-                  {preview.length >= numPages && (
-                    <div className="ws-doc-warning">Cannot delete all pages — at least one page must remain.</div>
-                  )}
-                  <div className="ws-doc-warning">⚠ This cannot be undone.</div>
-                </div>
-              </div>
-              <div className="ws-modal-footer">
-                {docProcessing ? <div className="ws-doc-processing"><div className="ws-doc-spinner"/><span>Deleting…</span></div> : <>
-                  <button className="ws-doc-btn-delete"
-                    disabled={preview.length === 0 || preview.length >= numPages}
-                    onClick={async () => {
-                      if (!pdfBytesRef.current || preview.length === 0 || preview.length >= numPages) return;
-                      setDocProcessing(true);
-                      try {
-                        const { PDFDocument } = await getPdfLib();
-                        const pdfDoc2 = await PDFDocument.load(pdfBytesRef.current);
-                        const indicesToRemove = new Set(preview.map(p => p - 1));
-                        const keep = Array.from({length: pdfDoc2.getPageCount()}, (_,i)=>i).filter(i=>!indicesToRemove.has(i));
-                        const newDoc = await PDFDocument.create();
-                        const copied = await newDoc.copyPages(pdfDoc2, keep);
-                        copied.forEach(p => newDoc.addPage(p));
-                        const newBytes = await newDoc.save();
-                        await reloadPdfFromBytes(newBytes);
-                      } catch (err) {
-                        showToast("Delete failed: " + (err?.message || err));
-                        setDocProcessing(false);
-                      }
-                    }}>Confirm Delete</button>
-                  <button className="ws-settings-reset" onClick={() => setModal(null)}>Cancel</button>
-                </>}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── Insert Blank Page ── */}
-      {modal?.type === "docInsertBlankPage" && (
-        <div className="ws-overlay" onClick={() => { if (!docProcessing) setModal(null); }}>
-          <div className="ws-modal ws-modal--lg" onClick={(e) => e.stopPropagation()}>
-            <div className="ws-modal-header">
-              <span className="ws-modal-title">Insert Blank Page</span>
-              <button className="ws-modal-close" onClick={() => setModal(null)} disabled={docProcessing}>×</button>
-            </div>
-            <div className="ws-modal-body">
-              <div className="ws-doc-form">
-                <div className="ws-doc-form-row-h">
-                  <div className="ws-doc-form-row">
-                    <label>Template</label>
-                    <select className="ws-doc-form-select"><option>Custom</option></select>
-                  </div>
-                  <div className="ws-doc-form-row">
-                    <label>Style</label>
-                    <select className="ws-doc-form-select"><option>Blank</option></select>
-                  </div>
-                </div>
-                <div className="ws-doc-form-row-h">
-                  <div className="ws-doc-form-row">
-                    <label>Width</label>
-                    <input className="ws-modal-input" type="number" min="0.1" step="0.1" value={insertWidth} onChange={(e)=>{
-                      setInsertWidth(e.target.value);
-                    }}/>
-                  </div>
-                  <div className="ws-doc-form-row">
-                    <label>Height</label>
-                    <input className="ws-modal-input" type="number" min="0.1" step="0.1" value={insertHeight} onChange={(e)=>{
-                      setInsertHeight(e.target.value);
-                    }}/>
-                  </div>
-                  <div className="ws-doc-form-row" style={{maxWidth:90}}>
-                    <label>Unit</label>
-                    <select className="ws-doc-form-select"><option>Inches</option></select>
-                  </div>
-                </div>
-                <div className="ws-doc-form-row">
-                  <label>Orientation</label>
-                  <div className="ws-doc-radio-group">
-                    <label><input type="radio" name="ibpOrient" value="portrait"  checked={insertOrient==="portrait"}  onChange={()=>{ setInsertOrient("portrait");  const w=parseFloat(insertWidth)||8.5, h=parseFloat(insertHeight)||11; if(w>h){setInsertWidth(String(h));setInsertHeight(String(w));} }}/> Portrait</label>
-                    <label><input type="radio" name="ibpOrient" value="landscape" checked={insertOrient==="landscape"} onChange={()=>{ setInsertOrient("landscape"); const w=parseFloat(insertWidth)||8.5, h=parseFloat(insertHeight)||11; if(h>w){setInsertWidth(String(h));setInsertHeight(String(w));} }}/> Landscape</label>
-                  </div>
-                </div>
-                <div className="ws-doc-form-row">
-                  <label>Page count</label>
-                  <input className="ws-modal-input" type="number" min="1" max="100" value={insertCount} onChange={(e)=>setInsertCount(e.target.value)} style={{maxWidth:100}}/>
-                </div>
-                <div className="ws-doc-form-row">
-                  <label>Insert position</label>
-                  <div className="ws-doc-form-row-h" style={{gap:8}}>
-                    <select className="ws-doc-form-select" value={insertPos} onChange={(e)=>setInsertPos(e.target.value)}>
-                      <option value="before">Before</option>
-                      <option value="after">After</option>
-                    </select>
-                    <select className="ws-doc-form-select" value={insertWhere} onChange={(e)=>setInsertWhere(e.target.value)}>
-                      <option value="first">First Page</option>
-                      <option value="last">Last Page</option>
-                      <option value="page">Page number…</option>
-                    </select>
-                    {insertWhere === "page" && (
-                      <input className="ws-modal-input" type="number" min="1" max={numPages} value={insertWherePage} onChange={(e)=>setInsertWherePage(e.target.value)} style={{width:70}}/>
-                    )}
-                  </div>
-                </div>
-                <div className="ws-doc-form-row">
-                  <label>Document</label>
-                  <div className="ws-doc-preview">{meta.filename}</div>
-                </div>
-              </div>
-            </div>
-            <div className="ws-modal-footer">
-              {docProcessing ? <div className="ws-doc-processing"><div className="ws-doc-spinner"/><span>Inserting…</span></div> : <>
-                <button className="ws-settings-save" onClick={async () => {
-                  if (!pdfBytesRef.current) return;
-                  setDocProcessing(true);
-                  try {
-                    const { PDFDocument } = await getPdfLib();
-                    const pdfDoc2 = await PDFDocument.load(pdfBytesRef.current);
-                    const PTS_PER_IN = 72;
-                    const w = (parseFloat(insertWidth)  || 8.5) * PTS_PER_IN;
-                    const h = (parseFloat(insertHeight) || 11)  * PTS_PER_IN;
-                    const count = Math.max(1, Math.min(100, parseInt(insertCount, 10) || 1));
-                    let refPage = insertWhere === "first" ? 0 : insertWhere === "last" ? pdfDoc2.getPageCount() - 1 : Math.max(0, Math.min(pdfDoc2.getPageCount()-1, parseInt(insertWherePage,10)-1));
-                    let insertAt = insertPos === "before" ? refPage : refPage + 1;
-                    for (let i = 0; i < count; i++) {
-                      pdfDoc2.insertPage(insertAt + i, [w, h]);
-                    }
-                    const newBytes = await pdfDoc2.save();
-                    await reloadPdfFromBytes(newBytes);
-                  } catch (err) {
-                    showToast("Insert failed: " + (err?.message || err));
-                    setDocProcessing(false);
-                  }
-                }}>OK</button>
-                <button className="ws-settings-reset" onClick={() => setModal(null)}>Cancel</button>
-              </>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Extract Pages ── */}
-      {modal?.type === "docExtractPages" && (
-        <div className="ws-overlay" onClick={() => { if (!docProcessing) setModal(null); }}>
-          <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ws-modal-header">
-              <span className="ws-modal-title">Extract Pages</span>
-              <button className="ws-modal-close" onClick={() => setModal(null)} disabled={docProcessing}>×</button>
-            </div>
-            <div className="ws-modal-body">
-              <div className="ws-doc-form">
-                <div className="ws-doc-form-row">
-                  <label>Pages to extract (e.g. 1-3, 5, 7) — document has {numPages} page{numPages !== 1 ? "s" : ""}</label>
-                  <input className="ws-modal-input" value={extractRangeInput} onChange={(e)=>setExtractRangeInput(e.target.value)} placeholder="e.g. 1-3, 5, 7" autoFocus/>
-                </div>
-                <div className="ws-doc-form-row">
-                  <div className="ws-doc-radio-group">
-                    <label><input type="checkbox" style={{accentColor:"#007BFF"}} checked={extractRemove} onChange={(e)=>setExtractRemove(e.target.checked)}/> Remove extracted pages from this document</label>
-                  </div>
-                </div>
-                {extractRemove && extractRangeInput.trim() && parsePageRange(extractRangeInput, numPages).length >= numPages && (
-                  <div className="ws-doc-warning">Cannot remove all pages — at least one must remain.</div>
-                )}
-              </div>
-            </div>
-            <div className="ws-modal-footer">
-              {docProcessing ? <div className="ws-doc-processing"><div className="ws-doc-spinner"/><span>Extracting…</span></div> : <>
-                <button className="ws-settings-save"
-                  disabled={!extractRangeInput.trim() || parsePageRange(extractRangeInput, numPages).length === 0}
-                  onClick={async () => {
-                    if (!pdfBytesRef.current) return;
-                    const pages = parsePageRange(extractRangeInput, numPages);
-                    if (pages.length === 0) return;
-                    if (extractRemove && pages.length >= numPages) { showToast("Cannot remove all pages"); return; }
-                    setDocProcessing(true);
-                    try {
-                      const { PDFDocument } = await getPdfLib();
-                      const src = await PDFDocument.load(pdfBytesRef.current);
-                      const extracted = await PDFDocument.create();
-                      const indices = pages.map(p => p - 1);
-                      const copied = await extracted.copyPages(src, indices);
-                      copied.forEach(p => extracted.addPage(p));
-                      const extractedBytes = await extracted.save();
-                      const blob = new Blob([extractedBytes], { type: "application/pdf" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = meta.filename.replace(/\.pdf$/i, "") + "_extracted.pdf";
-                      a.click();
-                      setTimeout(() => URL.revokeObjectURL(url), 5000);
-                      if (extractRemove) {
-                        const keep = Array.from({length: src.getPageCount()}, (_,i)=>i).filter(i=>!new Set(indices).has(i));
-                        const newDoc = await PDFDocument.create();
-                        const keptCopied = await newDoc.copyPages(src, keep);
-                        keptCopied.forEach(p => newDoc.addPage(p));
-                        const newBytes = await newDoc.save();
-                        await reloadPdfFromBytes(newBytes);
-                      } else {
-                        setModal(null);
-                        setDocProcessing(false);
-                        showToast(`Extracted ${pages.length} page${pages.length!==1?"s":""} — downloading`);
-                      }
-                    } catch (err) {
-                      showToast("Extract failed: " + (err?.message || err));
-                      setDocProcessing(false);
-                    }
-                  }}>Extract</button>
-                <button className="ws-settings-reset" onClick={() => setModal(null)}>Cancel</button>
-              </>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Number Pages ── */}
-      {modal?.type === "docNumberPages" && (
-        <div className="ws-overlay" onClick={() => { if (!docProcessing) setModal(null); }}>
-          <div className="ws-modal ws-modal--lg" onClick={(e) => e.stopPropagation()}>
-            <div className="ws-modal-header">
-              <span className="ws-modal-title">Number Pages</span>
-              <button className="ws-modal-close" onClick={() => setModal(null)} disabled={docProcessing}>×</button>
-            </div>
-            <div className="ws-modal-body">
-              <div className="ws-doc-form">
-                <div className="ws-doc-form-row-h">
-                  <div className="ws-doc-form-row">
-                    <label>Prefix (optional)</label>
-                    <input className="ws-modal-input" value={numberPrefix} onChange={(e)=>setNumberPrefix(e.target.value)} placeholder='e.g. "Page "' />
-                  </div>
-                  <div className="ws-doc-form-row">
-                    <label>Suffix (optional)</label>
-                    <input className="ws-modal-input" value={numberSuffix} onChange={(e)=>setNumberSuffix(e.target.value)} placeholder='e.g. " of 47"' />
-                  </div>
-                </div>
-                <div className="ws-doc-form-row-h">
-                  <div className="ws-doc-form-row">
-                    <label>Starting number</label>
-                    <input className="ws-modal-input" type="number" min="0" value={numberStart} onChange={(e)=>setNumberStart(e.target.value)}/>
-                  </div>
-                  <div className="ws-doc-form-row">
-                    <label>Font size</label>
-                    <select className="ws-doc-form-select" value={numberFontSize} onChange={(e)=>setNumberFontSize(e.target.value)}>
-                      {["8","10","12","14"].map(s=><option key={s} value={s}>{s} pt</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="ws-doc-form-row">
-                  <label>Position</label>
-                  <select className="ws-doc-form-select" value={numberPosition} onChange={(e)=>setNumberPosition(e.target.value)}>
-                    <option value="bottom-center">Bottom Center</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="bottom-right">Bottom Right</option>
-                    <option value="top-center">Top Center</option>
-                    <option value="top-left">Top Left</option>
-                    <option value="top-right">Top Right</option>
-                  </select>
-                </div>
-                <div className="ws-doc-form-row">
-                  <label>Apply to</label>
-                  <div className="ws-doc-radio-group">
-                    <label><input type="radio" name="npScope" value="all"   checked={numberScope==="all"}   onChange={(e)=>setNumberScope(e.target.value)}/> All Pages</label>
-                    <label><input type="radio" name="npScope" value="range" checked={numberScope==="range"} onChange={(e)=>setNumberScope(e.target.value)}/> Page Range</label>
-                  </div>
-                </div>
-                {numberScope === "range" && (
-                  <div className="ws-doc-form-row">
-                    <label>Page range (e.g. 1-3, 5, 7)</label>
-                    <input className="ws-modal-input" value={numberRangeInput} onChange={(e)=>setNumberRangeInput(e.target.value)} placeholder="1-3, 5, 7"/>
-                  </div>
-                )}
-                <div className="ws-doc-form-row">
-                  <label>Preview</label>
-                  <div className="ws-doc-preview">
-                    {numberPrefix}{parseInt(numberStart, 10) || 1}{numberSuffix}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="ws-modal-footer">
-              {docProcessing ? <div className="ws-doc-processing"><div className="ws-doc-spinner"/><span>Numbering…</span></div> : <>
-                <button className="ws-settings-save" onClick={async () => {
-                  if (!pdfBytesRef.current) return;
-                  setDocProcessing(true);
-                  try {
-                    const { PDFDocument, StandardFonts, rgb } = await getPdfLib();
-                    const pdfDoc2 = await PDFDocument.load(pdfBytesRef.current);
-                    const font = await pdfDoc2.embedFont(StandardFonts.Helvetica);
-                    const total = pdfDoc2.getPageCount();
-                    const targetPages = numberScope === "all"
-                      ? Array.from({length: total}, (_,i) => i)
-                      : parsePageRange(numberRangeInput, total).map(p => p - 1);
-                    const fontSize = parseInt(numberFontSize, 10) || 10;
-                    const startNum = parseInt(numberStart, 10) || 1;
-                    const margin = 28;
-                    targetPages.forEach((idx, i) => {
-                      const pg = pdfDoc2.getPage(idx);
-                      const { width, height } = pg.getSize();
-                      const text = `${numberPrefix}${startNum + i}${numberSuffix}`;
-                      const tw = font.widthOfTextAtSize(text, fontSize);
-                      let x, y;
-                      const pos = numberPosition;
-                      if (pos.includes("bottom")) y = margin;
-                      else y = height - margin - fontSize;
-                      if (pos.includes("left"))   x = margin;
-                      else if (pos.includes("right")) x = width - margin - tw;
-                      else x = (width - tw) / 2;
-                      pg.drawText(text, { x, y, size: fontSize, font, color: rgb(0, 0, 0) });
-                    });
-                    const newBytes = await pdfDoc2.save();
-                    await reloadPdfFromBytes(newBytes);
-                  } catch (err) {
-                    showToast("Number pages failed: " + (err?.message || err));
-                    setDocProcessing(false);
-                  }
-                }}>Apply</button>
-                <button className="ws-settings-reset" onClick={() => setModal(null)}>Cancel</button>
-              </>}
             </div>
           </div>
         </div>
