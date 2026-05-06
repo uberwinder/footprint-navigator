@@ -1,0 +1,111 @@
+Add a fully functional Document menu to the app menu bar 
+with these items. Reference Bluebeam Revu's Document menu 
+as the design standard. Every item must actually work — 
+do not add menu items that are not functional.
+
+DOCUMENT MENU ITEMS TO ADD:
+
+1. DOCUMENT PROPERTIES (Ctrl+D)
+Show a modal with these details about the currently 
+loaded PDF:
+- File name
+- File size (formatted as KB or MB)
+- Total page count
+- Page dimensions of current page (width x height in inches)
+- Creation date if available in PDF metadata
+- Author if available in PDF metadata
+- PDF version
+Style the modal to match the app dark theme with 
+#1a1a1a background and electric blue #007BFF accents.
+Close button in top right.
+
+2. ROTATE PAGES
+Show a dialog matching Bluebeam style with these options:
+- Which pages to rotate: Current Page, All Pages, 
+  or Page Range (text input like "1-3, 5, 7")
+- Rotation direction: 90 degrees clockwise, 
+  90 degrees counterclockwise, 180 degrees
+- Apply button and Cancel button
+When applied, rotate the specified pages in the PDF 
+using pdfjs or pdf-lib. The rotation must be visible 
+in the viewer immediately after applying.
+Use pdf-lib for the actual rotation since pdfjs is 
+read-only.
+
+3. DELETE PAGES
+Show a dialog with:
+- Page range input: "Enter pages to delete (e.g. 1-3, 5, 7)"
+- Preview showing which pages will be deleted
+- Confirm Delete button in red and Cancel button
+- Warning: "This cannot be undone"
+Use pdf-lib to remove the specified pages from the 
+document. Update the viewer and thumbnail panel 
+immediately after deletion.
+
+4. INSERT BLANK PAGE
+Show a dialog matching the Bluebeam Insert Blank Page 
+dialog with these exact fields:
+- Template: Custom (dropdown, only Custom for now)
+- Width: number input, default 8.5, unit dropdown 
+  showing Inches
+- Height: number input, default 11, unit dropdown 
+  showing Inches  
+- Orientation: Portrait / Landscape radio buttons. 
+  Switching orientation swaps width and height values
+- Style: Blank (dropdown, only Blank for now)
+- Page Count: number input, default 1
+- Position section showing the current filename
+- Insert position: Before / After dropdown
+- Which page: First Page, Last Page, or specific 
+  Page number input
+- OK button in electric blue and Cancel button
+Use pdf-lib to insert the specified number of blank 
+pages at the correct position. Update viewer and 
+thumbnails immediately.
+
+5. EXTRACT PAGES
+Show a dialog with:
+- Page range input: "Pages to extract (e.g. 1-3, 5, 7)"
+- Option: Remove extracted pages from document yes/no
+- Extract button and Cancel button
+Extract the specified pages into a new PDF file and 
+trigger a browser download of the extracted PDF.
+If remove from document is yes, also delete those 
+pages from the current document using pdf-lib and 
+update the viewer.
+
+6. NUMBER PAGES
+Show a dialog with:
+- Prefix text input (optional, e.g. "Page ")
+- Suffix text input (optional, e.g. " of 47")
+- Starting number input, default 1
+- Font size selector: 8, 10, 12, 14 point
+- Position: Bottom Center, Bottom Left, Bottom Right, 
+  Top Center, Top Left, Top Right
+- Which pages: All Pages or page range input
+- Apply button and Cancel button
+Use pdf-lib to stamp the page numbers as text onto 
+each specified page at the selected position.
+Update the viewer after applying.
+
+GENERAL REQUIREMENTS:
+- Install pdf-lib: npm install pdf-lib
+- All operations use pdf-lib to modify the PDF in memory
+- After any modification, reload the PDF in the viewer 
+  using the updated bytes so changes are visible immediately
+- Update the thumbnail panel after any page changes
+- All dialogs match the dark theme: #1a1a1a background, 
+  white text, electric blue #007BFF buttons and accents, 
+  Montserrat font
+- All dialogs have an X button to close without saving
+- Add keyboard shortcuts matching Bluebeam:
+  Ctrl+D for Document Properties
+- Add the Document menu to the existing menu bar between 
+  the current menu items, matching the position shown 
+  in the Bluebeam screenshot where Document appears 
+  before Batch and Tools
+- The menu closes when clicking away just like the 
+  other menus
+
+Show me which files you will modify and your 
+implementation plan before writing any code.

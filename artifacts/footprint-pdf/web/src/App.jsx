@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState, Component } from "react";
 import PreviewMode from "./PreviewMode.jsx";
 import Workspace   from "./Workspace.jsx";
-import OnboardingBubble from "./OnboardingBubble.jsx";
 import FeedbackModal from "./FeedbackModal.jsx";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -238,9 +237,6 @@ export default function App() {
     <div className="app">
       {/* ── Feedback modal (triggered by tab close / beforeunload) ── */}
       {showFeedback && <FeedbackModal onClose={handleFeedbackClose} />}
-
-      {/* ── Onboarding bubble — only after tour is closed/completed ── */}
-      {appState === "workspace" && onboardDone && <OnboardingBubble />}
 
       {/* ── Drop zone ── */}
       {appState === "idle" && (
