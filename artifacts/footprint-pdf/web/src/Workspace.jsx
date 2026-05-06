@@ -1858,13 +1858,28 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       // Store in session memory
       _addToMemory(q, answer, topResults.map((r) => r.page));
 
+      // Parse __bug_confirm JSON block out of the answer text
+      let displayText = answer;
+      let bugConfirm  = null;
+      const bugMatch = answer.match(/\{[^}]*"__bug_confirm"\s*:\s*true[^}]*\}/s);
+      if (bugMatch) {
+        try {
+          const parsed = JSON.parse(bugMatch[0]);
+          if (parsed.__bug_confirm && parsed.summary) {
+            bugConfirm  = { summary: parsed.summary };
+            displayText = answer.slice(0, bugMatch.index).trim();
+          }
+        } catch { /* malformed JSON — show raw */ }
+      }
+
       setChatMessages((prev) => {
         const next = [...prev];
         const last = next[next.length - 1];
         if (last?.thinking) {
           next[next.length - 1] = {
-            role: "navigator", text: answer, results: topResults, aiAnswer: true, usedSummary,
+            role: "navigator", text: displayText, results: topResults, aiAnswer: true, usedSummary,
             model: ansModel, complexity: ansComplexity, latencyMs: ansLatency, confidence: ansConfidence,
+            ...(bugConfirm ? { bugConfirm } : {}),
           };
         }
         return next;
@@ -2740,6 +2755,43 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                         )}
                         {msg.fromMemory && msg.memoryNote && (
                           <span className="ws-chat-memory-note">{msg.memoryNote}</span>
+                        )}
+                        {msg.bugConfirm && !msg.bugConfirmUsed && (
+                          <div className="ws-chat-bug-confirm">
+                            <button
+                              className="ws-chat-bug-btn ws-chat-bug-btn--yes"
+                              onClick={async () => {
+                                setChatMessages((prev) => prev.map((m, idx) => idx === i ? { ...m, bugConfirmUsed: true } : m));
+                                const ctx = chatMessages
+                                  .slice(0, i + 1)
+                                  .map((m) => `${m.role === "user" ? "User" : "Navigator"}: ${m.text || ""}`)
+                                  .join("\n");
+                                try {
+                                  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+                                  await fetch(`${base}/pdf-api/bug-report`, {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ summary: msg.bugConfirm.summary, conversationContext: ctx }),
+                                  });
+                                } catch { /* best-effort */ }
+                                setChatMessages((prev) => [...prev, {
+                                  role: "navigator",
+                                  text: "Report submitted — thank you. Our team will look into this. If your report leads to a fix, we will credit your account.",
+                                  results: [],
+                                }]);
+                              }}
+                            >Yes, submit this</button>
+                            <button
+                              className="ws-chat-bug-btn ws-chat-bug-btn--no"
+                              onClick={() => {
+                                setChatMessages((prev) => prev.map((m, idx) => idx === i ? { ...m, bugConfirmUsed: true } : m));
+                                setChatInput("No, let me describe it differently");
+                                setTimeout(() => {
+                                  document.querySelector(".ws-chat-input")?.closest("form")?.requestSubmit?.();
+                                }, 50);
+                              }}
+                            >No, let me describe it differently</button>
+                          </div>
                         )}
                         {msg.results?.length > 0 && (
                           <div className="ws-chat-results">

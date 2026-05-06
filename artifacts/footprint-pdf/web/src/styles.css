@@ -1071,6 +1071,23 @@ button { font-family: inherit; }
 }
 .ws-chat-memory-note { font-size: 11px; color: #666; font-style: italic; }
 
+/* ── Bug Confirm Buttons ──────────────────────────────────────── */
+.ws-chat-bug-confirm {
+  display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;
+}
+.ws-chat-bug-btn {
+  padding: 6px 14px; border-radius: 6px; border: none;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.ws-chat-bug-btn:hover { opacity: 0.85; }
+.ws-chat-bug-btn--yes {
+  background: #ef4444; color: #fff;
+}
+.ws-chat-bug-btn--no {
+  background: #27272a; color: #aaa; border: 1px solid #3f3f46;
+}
+
 /* ── Settings Panel ────────────────────────────────────────────── */
 @keyframes ws-settings-fadein { from { opacity: 0; } to { opacity: 1; } }
 .ws-settings-panel {

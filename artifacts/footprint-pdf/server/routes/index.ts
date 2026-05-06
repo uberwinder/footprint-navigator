@@ -4,6 +4,7 @@ import chatRouter from "./chat.js";
 import summarizeRouter from "./summarize.js";
 import onboardRouter from "./onboard.js";
 import feedbackRouter from "./feedback.js";
+import bugReportRouter from "./bug-report.js";
 
 const router: IRouter = Router();
 
@@ -16,6 +17,6 @@ router.use(chatRouter);
 router.use(summarizeRouter);
 router.use(onboardRouter);
 router.use(feedbackRouter);
-
+router.use(bugReportRouter);
 
 export default router;
