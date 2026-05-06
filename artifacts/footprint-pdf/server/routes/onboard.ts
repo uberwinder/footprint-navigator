@@ -123,7 +123,7 @@ router.post("/onboard", async (req: Request, res: Response) => {
       return res.json({ answer });
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
-      req.log?.warn({ err }, "[onboard] Claude failed, trying Groq fallback");
+      console.warn("[onboard] Claude failed, trying Groq fallback", err);
     }
   }
 
@@ -133,7 +133,7 @@ router.post("/onboard", async (req: Request, res: Response) => {
       return res.json({ answer });
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
-      req.log?.error({ err }, "[onboard] Groq fallback also failed");
+      console.error("[onboard] Groq fallback also failed", err);
     }
   }
 
