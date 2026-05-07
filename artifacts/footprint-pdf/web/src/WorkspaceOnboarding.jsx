@@ -18,6 +18,11 @@ const FEATURES = [
       "Blue means auto-detected, white means manually corrected, gray means not detected. Click any thumbnail to jump to that page instantly.",
   },
   {
+    title: "Project Files",
+    intro:
+      "Navigator can work with up to 5 related documents at once in a single project. Add specs, RFIs, submittals, or any related PDF via Settings → Project Files. Give your project a name, add your documents, and Navigator will search all of them together — always telling you which document an answer came from. You can also paste project links like Procore or other PM tool URLs to keep everything in one place. Full integrations are currently in development.",
+  },
+  {
     title: "Keyword Search",
     intro:
       "Search every page of your document instantly by keyword. Results show the exact page number and a text snippet. Click any result to jump directly to that page.",
@@ -37,7 +42,6 @@ const FEATURES = [
     intro:
       "Footprint Navigator launched as a web app and a lot more is being built right now. Here is what the team is actively working on:\n\n" +
       "- Desktop app — offline use and local file access without uploading\n" +
-      "- Multiple documents — open and search across several documents simultaneously\n" +
       "- Project management integrations — take action in your PM tools and email without leaving the app\n" +
       "- Persistent project storage — save and reopen projects without re-uploading\n" +
       "- Team pricing — $29 per user per month\n" +
