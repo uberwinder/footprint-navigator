@@ -634,15 +634,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // Search
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  // Active document derived values (activeDocId=null → primary doc from props)
-  const activeDoc        = activeDocId ? (extraDocs.find(d => d.id === activeDocId) ?? null) : null;
-  const activePageTexts  = activeDoc ? activeDoc.pageTexts  : pageTexts;
-  const activePageTitles = activeDoc ? activeDoc.pageTitles : pageTitles;
-  const activePageSheets = activeDoc ? activeDoc.pageSheets : pageSheets;
-  const activeNumPages   = activeDoc ? activeDoc.numPages   : (numPages || meta.pages);
-  const activeMeta       = activeDoc ? { filename: activeDoc.name, pages: activeDoc.numPages } : meta;
-
-  const searchResults = searchQuery ? buildSearchResults(activePageTexts, searchQuery) : [];
 
   // Page num input (local, committed on blur/enter)
   const [pageInputVal, setPageInputVal] = useState("1");
@@ -686,6 +677,15 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // Project Links
   const [projectLinks,    setProjectLinks]    = useState([]); // [{url,addedAt}]
   const [linkInput,       setLinkInput]       = useState("");
+  // Active document derived values (activeDocId=null → primary doc from props)
+  // NOTE: must appear AFTER extraDocs + activeDocId are declared above to avoid TDZ
+  const activeDoc        = activeDocId ? (extraDocs.find(d => d.id === activeDocId) ?? null) : null;
+  const activePageTexts  = activeDoc ? activeDoc.pageTexts  : pageTexts;
+  const activePageTitles = activeDoc ? activeDoc.pageTitles : pageTitles;
+  const activePageSheets = activeDoc ? activeDoc.pageSheets : pageSheets;
+  const activeNumPages   = activeDoc ? activeDoc.numPages   : (numPages || meta.pages);
+  const activeMeta       = activeDoc ? { filename: activeDoc.name, pages: activeDoc.numPages } : meta;
+  const searchResults = searchQuery ? buildSearchResults(activePageTexts, searchQuery) : [];
   // Editable staging for settings (committed on Save)
   const [stgPrompt,       setStgPrompt]       = useState(() => localStorage.getItem("navigator-system-prompt") || "");
   const [stgResponseLen,  setStgResponseLen]  = useState(() => localStorage.getItem("navigator-response-length") || "medium");
@@ -849,30 +849,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     }
     setPageNum(1);
   }, [activeDocId]); // eslint-disable-line
-
-  // ── Auto-load extra tabs passed from App (multi-file drop "separate tabs") ──
-  const tabsAutoLoadedRef = useRef(false);
-  useEffect(() => {
-    if (tabsAutoLoadedRef.current) return;
-    if (!pdfDoc || !pendingTabFiles?.length) return;
-    tabsAutoLoadedRef.current = true;
-
-    (async () => {
-      let projectId = null;
-      if (extraFilesAsSameProject) {
-        const newId = `proj-${Date.now()}`;
-        const projName = meta.filename.replace(/\.pdf$/i, "") + " Project";
-        setProjects((prev) => [...prev, { id: newId, name: projName }]);
-        setPrimaryProjectId(newId);
-        // brief pause so state settles before loadExtraDoc reads it
-        await new Promise((r) => setTimeout(r, 80));
-        projectId = newId;
-      }
-      for (const f of pendingTabFiles) {
-        await loadExtraDoc(f, projectId);
-      }
-    })();
-  }, [pdfDoc, pendingTabFiles]); // eslint-disable-line
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -2124,6 +2100,31 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     setOpenAssocModal(false);
     await loadExtraDoc(pendingFile, targetProjectId);
   }, [pendingFile, assocChoice, assocProjectId, assocNewName, onNewFile, loadExtraDoc]);
+
+  // ── Auto-load extra tabs passed from App (multi-file drop "separate tabs") ──
+  // Must live AFTER loadExtraDoc is defined to avoid temporal dead zone.
+  const tabsAutoLoadedRef = useRef(false);
+  useEffect(() => {
+    if (tabsAutoLoadedRef.current) return;
+    if (!pdfDoc || !pendingTabFiles?.length) return;
+    tabsAutoLoadedRef.current = true;
+
+    (async () => {
+      let projectId = null;
+      if (extraFilesAsSameProject) {
+        const newId = `proj-${Date.now()}`;
+        const projName = meta.filename.replace(/\.pdf$/i, "") + " Project";
+        setProjects((prev) => [...prev, { id: newId, name: projName }]);
+        setPrimaryProjectId(newId);
+        // brief pause so state settles before loadExtraDoc reads it
+        await new Promise((r) => setTimeout(r, 80));
+        projectId = newId;
+      }
+      for (const f of pendingTabFiles) {
+        await loadExtraDoc(f, projectId);
+      }
+    })();
+  }, [pdfDoc, pendingTabFiles]); // eslint-disable-line
 
   const removeExtraDoc = useCallback((id) => {
     setExtraDocs(prev => prev.filter(d => d.id !== id));
