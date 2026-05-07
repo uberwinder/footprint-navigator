@@ -1,0 +1,105 @@
+Fix all items that FAILED or were NOT FOUND in the 
+health check. Here is exactly what needs to be fixed:
+
+1. ADD /ping ENDPOINT:
+Add GET /ping to the main server that returns 
+{ ok: true, timestamp: new Date().toISOString() }
+Note: the existing endpoint is at /api/ping but 
+UptimeRobot is monitoring /ping — add both to be safe.
+
+2. MOVE GOOGLE PRIVATE KEY TO ENVIRONMENT SECRET:
+In feedback.ts lines 75-102, remove the hardcoded 
+RSA private key and replace with:
+const GS_PRIVATE_KEY = (process.env["GOOGLE_SERVICE_ACCOUNT_KEY"] ?? "").replace(/\\n/g, "\n");
+
+Then add the private key value to Replit Secrets as 
+GOOGLE_SERVICE_ACCOUNT_KEY. Use the key that was 
+previously hardcoded in the file.
+
+Also tell me exactly what value to add to Render 
+environment variables so Google Sheets feedback 
+works in production.
+
+3. ADD UI LOCATIONS MAP TO MAIN CHAT SYSTEM PROMPT:
+The UI locations map currently only exists in 
+onboard.ts but is missing from chat.ts SYSTEM_PROMPT.
+Add this complete UI locations section to chat.ts:
+
+UI LOCATIONS:
+- PDF Upload: center of screen on load, drag and 
+  drop or click Choose Document button
+- Thumbnail panel: left sidebar, click any thumbnail 
+  to jump, click sheet label to correct it
+- Search: top toolbar, keyboard shortcut Ctrl+F
+- Length tool: toolbar or keyboard shortcut L
+- Area tool: toolbar or keyboard shortcut A
+- Perimeter tool: toolbar or keyboard shortcut P
+- Angle tool: toolbar or keyboard shortcut G
+- Scale calibration: opens automatically when 
+  measurement tool activated without scale set
+- Measurements panel: shows all measurements, 
+  export to CSV
+- Chat panel: bottom of screen, accessible from 
+  toolbar or View menu
+- Settings: gear icon inside the chat panel
+- Split view vertical: Ctrl+2
+- Split view horizontal: Ctrl+H
+- Full screen: F11
+- Zoom: Z key or toolbar buttons
+- Pan: Shift+V or toolbar
+- Select tool: V key
+- Select text tool: Shift+T
+- Page navigation: Ctrl+Left and Ctrl+Right
+- First page: Ctrl+Home
+- Last page: Ctrl+End
+- Previous view: Alt+Left
+- Next view: Alt+Right
+- Find search: Ctrl+F
+- Document menu: top menu bar
+- Project Files: Settings → Project Files section
+- Project Links: Settings → Project Files → 
+  Project Links section below documents
+- Keyboard shortcuts modal: Help menu
+
+4. ADD MISSING CONVERSATION RULES TO CHAT SYSTEM PROMPT:
+Currently only 8 rules exist. Add these missing rules 
+to bring the total to 15:
+9. When a user asks where something is in the app 
+   give them the exact location and keyboard shortcut
+10. Document mode: answer using document content 
+    and always cite sheet and page references
+11. Assistant mode: answer helpfully as a document 
+    and industry expert
+12. For features not yet built say: That is currently 
+    in development. For now I can help you find 
+    related information in your document
+13. Multi-document projects are supported up to 5 
+    documents — add files via Settings → Project Files
+14. Navigator searches all project documents but 
+    prioritizes the active tab — answers from 
+    non-primary documents always cite the filename
+15. For product pricing use training knowledge and 
+    always hedge with suggestion to verify with 
+    manufacturer or supplier
+
+5. ADD CHAT PANEL RESIZE HANDLE:
+The chat panel resize handle was supposed to be 
+built but was NOT FOUND. Build it now:
+
+The chat panel at the bottom of the screen must have 
+a drag handle at its top edge so the user can resize 
+it taller or shorter.
+
+- Minimum height: 200px
+- Maximum height: 70% of screen height
+- Default height when first opened: 300px
+- The resize handle should be a thin bar at the 
+  top of the chat panel, 4px tall, with a subtle 
+  visual indicator that it is draggable
+- While dragging, the PDF viewer above shrinks 
+  and grows to fill the remaining space
+- Height persists during the session
+- Do not change the visual design of the chat panel
+
+After all fixes push to GitHub and confirm each 
+item is resolved.

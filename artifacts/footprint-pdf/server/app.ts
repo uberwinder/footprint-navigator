@@ -15,7 +15,11 @@ app.get("/pdf-api", (_req: Request, res: Response) => {
 });
 
 app.get("/pdf-api/ping", (_req: Request, res: Response) => {
-  res.json({ ok: true });
+  res.json({ ok: true, timestamp: new Date().toISOString() });
 });
+
+// UptimeRobot-compatible ping routes (no base path prefix)
+app.get("/ping",     (_req: Request, res: Response) => res.json({ ok: true, timestamp: new Date().toISOString() }));
+app.get("/api/ping", (_req: Request, res: Response) => res.json({ ok: true, timestamp: new Date().toISOString() }));
 
 export default app;

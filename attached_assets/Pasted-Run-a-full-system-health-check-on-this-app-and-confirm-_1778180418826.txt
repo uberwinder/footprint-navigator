@@ -1,0 +1,43 @@
+Run a full system health check on this app and confirm 
+the following are all working correctly:
+
+1. GET /ping endpoint exists and returns { ok: true }
+2. The Google service account private key is NOT 
+   hardcoded in feedback.ts — it should be reading 
+   from process.env.GOOGLE_SERVICE_ACCOUNT_KEY
+3. The from address in feedback.ts and bug-report.ts 
+   is info@footprintnavigator.com not onboarding@resend.dev
+4. The SYSTEM_PROMPT in chat.ts contains all of these 
+   sections — confirm each exists:
+   - Dual mode (Document Mode and Assistant Mode)
+   - Full UI locations map
+   - Working features list
+   - Not yet functional features list
+   - Bug reporting flow with __bug_confirm JSON
+   - Construction document discipline order (G, D, C, L, S, A, ID, M, P, E, FP, FA)
+   - CSI MasterFormat knowledge
+   - Product pricing rules
+   - Conversation rules (all 15)
+   - Navigator identity (name, made by Footprint Technologies)
+5. The onboarding system prompt in onboard.ts contains 
+   knowledge about multi-document projects, project links, 
+   pricing, launch date, and UI locations
+6. The feedback_submissions table exists in the database
+7. The bug_reports table exists in the database
+8. The RESEND_API_KEY is set and active
+9. The scale gate is implemented — search for 
+   "Set Page Scale Before Measuring" modal in Workspace.jsx
+10. The count tool right-click removal handler exists — 
+    search for handleMeasureContextMenu in Workspace.jsx
+11. The renderTextLayer warning is fixed — confirm 
+    no remaining references to renderTextLayer as a 
+    function call in Workspace.jsx
+12. The chat panel resize handle exists — search for 
+    resize logic in Workspace.jsx
+13. The multi-doc project system exists — confirm 
+    extraDocs state and loadExtraDoc function in Workspace.jsx
+14. The multi-file combine flow exists — confirm 
+    handleCombine function in App.jsx
+
+For each item report: PASS, FAIL, or NOT FOUND.
+Do not fix anything — just report status.
