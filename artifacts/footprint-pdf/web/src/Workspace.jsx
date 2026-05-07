@@ -1077,15 +1077,22 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       const shift = e.shiftKey;
       const k     = e.key;
 
-      // Close modal / cancel calibration / cancel measurement
+      // Close modal / cancel calibration / exit measurement / close chat
       if (k === "Escape") {
         if (calibModeRef.current) {
+          // 1. Cancel calibration
           setCalibMode(false); setCalibPts([]); setModal(null);
           setCurrentTool(prevToolRef.current);
-        } else if (measurePointsRef.current.length > 0) {
+        } else if (MTOOLS.includes(currentToolRef.current)) {
+          // 2. Exit measurement mode: discard in-progress points, back to select
           setMeasurePoints([]);
-        } else {
+          setMeasureTool(null);
+          setCurrentTool("select");
           setModal(null);
+        } else {
+          // 3. Close any open modal; if none, close chat panel
+          setModal(null);
+          setChatOpen(false);
         }
         return;
       }
@@ -1233,10 +1240,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         if (data.pathOps < 10) {
           setSnapStatus("scanned");
           snapGridRef.current = null;
-          if (!snapToastShownRef.current) {
-            snapToastShownRef.current = true;
-            showToast("Snap: vector paths not found on this page");
-          }
+          // Status bar already shows "Snap: N/A" — no toast needed
         } else {
           setSnapStatus("vector");
           snapGridRef.current = buildSnapGrid(data.points);
