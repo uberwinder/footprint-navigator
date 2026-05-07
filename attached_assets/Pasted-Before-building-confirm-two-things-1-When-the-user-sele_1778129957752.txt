@@ -1,0 +1,74 @@
+Before building, confirm two things:
+
+1. When the user selects "No, open as standalone document" 
+   in the association modal, does it call onNewFile() exactly 
+   as it does today with zero changes to the existing flow?
+
+2. Does the implementation plan include the Project Links 
+   section in settings where users can paste URLs with an 
+   Add Link button and a list of links with remove buttons 
+   labeled "Project Links (integrations coming soon)"?
+
+If both are confirmed, proceed with the full implementation 
+exactly as planned with these additional requirements:
+
+PROJECT FILES SETTINGS SECTION:
+- Project Name field at the top
+- Primary document shown as non-removable labeled "Primary"
+- List of extra documents with remove buttons
+- Document count badge "2 of 5 documents"
+- Maximum 5 documents total enforced
+- Project Links section below documents:
+  - Label: "Project Links (integrations coming soon)"
+  - Text input to paste a URL
+  - Add Link button
+  - List of added links each with a remove button
+  - Maximum 10 links per project
+  - When Navigator is asked about linked resources respond:
+    "I can see you have linked resources but I cannot 
+    access them yet — integrations are currently in 
+    development"
+
+TAB BAR:
+- Each tab shows filename only
+- Active tab highlighted in electric blue #007BFF
+- Each tab has X to close except when only one doc is open
+- Project documents have a subtle blue dot indicator
+- Standalone documents have no indicator
+- Maximum 5 tabs
+- Tabs scroll horizontally if they overflow
+
+AI CHAT BEHAVIOR:
+- Search active document first with highest weight
+- Search all other documents in the same project
+- Do not search standalone documents not in the project
+- Cite non-active document answers:
+  "In Specifications.pdf page 47..."
+- If answer only in another project document say:
+  "I did not find that in [active file] but found 
+  this in [other file] page X:"
+
+Also update the AI to use built-in training knowledge 
+for product pricing questions. When a user asks about 
+cost or availability of a product mentioned in the 
+document, Navigator should answer using training 
+knowledge with a natural hedge like:
+"Based on what I know, a gallon of Sherwin Williams 
+Emerald typically costs around $85-95 at retail. 
+Prices vary by location and may have changed — 
+check sherwinwilliams.com for current pricing."
+
+SYSTEM PROMPT UPDATE:
+Add this knowledge to the main Navigator system prompt:
+- Multi-document projects supported up to 5 documents
+- Add related files via Settings → Project Files
+- Add project name in Settings → Project Files
+- Project Links section for pasting related URLs
+- Integrations with project management software in development
+- Navigator searches all project documents but prioritizes 
+  active tab
+- Answers from non-primary documents always cite filename
+- For product pricing use training knowledge and always 
+  hedge with suggestion to verify with manufacturer
+
+After implementing push to GitHub and list every file changed.

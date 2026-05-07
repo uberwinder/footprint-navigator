@@ -642,7 +642,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
   // Chat
   const [chatOpen,     setChatOpen]     = useState(false);
-  const [chatHeight,   setChatHeight]   = useState(160);
+  const [chatHeight,   setChatHeight]   = useState(300);
   const [chatInput,    setChatInput]    = useState("");
   const [chatMessages, setChatMessages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`chat:${meta.filename}`) || "[]"); }
@@ -1913,8 +1913,11 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     e.preventDefault();
     const startY = e.clientY;
     const startH = chatHeight;
-    const onMove = (ev) => setChatHeight(Math.min(400, Math.max(100, startH + (startY - ev.clientY))));
-    const onUp   = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    const onMove = (ev) => {
+      const maxH = Math.floor(window.innerHeight * 0.7);
+      setChatHeight(Math.min(maxH, Math.max(200, startH + (startY - ev.clientY))));
+    };
+    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [chatHeight]);

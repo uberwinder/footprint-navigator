@@ -1,0 +1,97 @@
+The settings panel already has a "Project Files" section 
+where users can upload related documents. Build on top of 
+what already exists. Do not duplicate or replace it.
+
+Here is exactly how the full system should work:
+
+EXISTING PROJECT FILES SECTION — ENHANCE IT:
+The existing Project Files upload area in settings should:
+1. Show a list of all documents currently in the project 
+   with filename and a remove button next to each
+2. Show a document count like "2 of 5 documents"
+3. Enforce a maximum of 5 documents total including the 
+   primary document already open in the viewer
+4. When a document is added here it is automatically 
+   part of the current project and searchable by Navigator
+5. Add a Project Name field at the top of this section 
+   so the user can name the project
+
+OPEN FILE FLOW — PROJECT ASSOCIATION:
+When the user opens a new PDF using the main Open button 
+or file open flow, show a modal dialog asking:
+
+"Would you like to associate this document with a project?"
+
+The modal has:
+- A dropdown showing all current projects by name 
+  (if any exist)
+- An option "Create new project" which shows a text 
+  input for the project name
+- An option "No, open as standalone document"
+- Confirm button and Cancel button
+
+If the user associates the document with a project:
+- It becomes part of that project
+- It appears as a tab in the tab bar
+- Navigator searches it alongside other project documents
+
+If the user selects standalone:
+- It opens normally as a single document
+- No project association
+- Navigator only searches this document
+
+TAB BAR:
+Add a tab bar at the top of the PDF viewer showing all 
+open documents. Rules:
+- Each tab shows filename only
+- Active tab highlighted in electric blue #007BFF
+- Each tab has an X to close except when only one 
+  document is open
+- Tabs that belong to the same project have a subtle 
+  indicator like a colored dot or project name tooltip
+- Maximum 5 tabs total
+- Tabs scroll horizontally if they overflow
+
+AI CHAT BEHAVIOR WITH MULTIPLE DOCUMENTS:
+When the user asks a question:
+1. Search the active document first with highest weight
+2. Search all other documents in the same project
+3. Do not search standalone documents that are not 
+   in the same project as the active document
+4. When answer comes from non-active document cite it:
+   "In Specifications.pdf page 47..."
+5. When answer comes from active document cite normally
+6. If answer only exists in another project document say:
+   "I did not find that in [active file] but found 
+   this in [other file] page X:" then give the answer
+
+SYSTEM PROMPT UPDATE:
+After implementing update the Navigator system prompt 
+to include:
+- Multi-document projects are supported
+- Up to 5 documents per project
+- Add related files via Settings → Project Files
+- When opening a new file the user is asked if it 
+   belongs to a project
+- Navigator searches all project documents but 
+   prioritizes the active tab
+- Answers from non-primary documents always cite 
+   the source filename
+
+TECHNICAL REQUIREMENTS:
+- Build on top of the existing Project Files upload 
+  area — do not replace it
+- Each document needs its own extracted text in state 
+  keyed by filename
+- Active document index controls which PDF renders 
+  in the viewer
+- Text extraction for additional documents uses the 
+  same pipeline as the primary document
+- Removing a document clears its extracted text from state
+- No persistent storage needed — session only
+- The existing single document flow must still work 
+  exactly as before for standalone documents
+- Do not break any existing functionality
+
+Show me the implementation plan and which files will 
+change before writing any code.
