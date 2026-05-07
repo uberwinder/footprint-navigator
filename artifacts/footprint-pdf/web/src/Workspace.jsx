@@ -3883,7 +3883,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
       {/* ── Scale Gate Modal ── */}
       {modal?.type === "scaleGate" && (
-        <div className="ws-modal-overlay" onClick={() => setModal(null)}>
+        <div className="ws-overlay" onClick={() => setModal(null)}>
           <div className="ws-modal" onClick={(e) => e.stopPropagation()}>
             <div className="ws-modal-header">
               <span className="ws-modal-title">Set Page Scale Before Measuring</span>
