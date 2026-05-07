@@ -929,14 +929,9 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         tl.style.height = `${Math.floor(viewport.height)}px`;
         try {
           const textContent = await page.getTextContent();
-          if (pdfjsLib.TextLayer) {
-            // PDF.js v4+ class-based API
-            const layer = new pdfjsLib.TextLayer({ textContentSource: textContent, container: tl, viewport });
-            await layer.render();
-          } else if (typeof pdfjsLib.renderTextLayer === "function") {
-            // Legacy PDF.js v2/v3 function API
-            pdfjsLib.renderTextLayer({ textContentSource: textContent, container: tl, viewport });
-          }
+          // PDF.js v4 class-based API
+          const layer = new pdfjsLib.TextLayer({ textContentSource: textContent, container: tl, viewport });
+          await layer.render();
         } catch { /* graceful degradation */ }
       }
     } catch (err) {
