@@ -495,7 +495,12 @@ button { font-family: inherit; }
   background: var(--bar);
   border-bottom: 2px solid var(--accent);
   padding: 0 8px; height: 30px; flex-shrink: 0;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent;
 }
+.ws-tabbar::-webkit-scrollbar { height: 3px; }
+.ws-tabbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 2px; }
+.ws-tab--project { border-top: 2px solid rgba(0,123,255,.45); }
 .ws-tab {
   display: flex; align-items: center; gap: 8px;
   background: var(--panel); border: 1px solid var(--border); border-bottom: none;
@@ -1204,6 +1209,37 @@ button { font-family: inherit; }
   font-size: 14px; line-height: 1; padding: 0 2px; transition: color .1s;
 }
 .ws-settings-file-remove:hover { color: #f88; }
+/* Doc count badge */
+.ws-settings-doc-count { font-size: 10px; font-weight: 600; color: #555; letter-spacing: .3px; }
+/* File type badge (Primary / Tab / Ctx) */
+.ws-settings-file-primary, .ws-settings-file-tab, .ws-settings-file-ctx {
+  flex-shrink: 0; font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 3px; line-height: 1.6;
+}
+.ws-settings-file-primary { background: rgba(0,123,255,.2); color: #7fb8ff; border: 1px solid rgba(0,123,255,.35); }
+.ws-settings-file-tab     { background: rgba(16,185,129,.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,.35); }
+.ws-settings-file-ctx     { background: rgba(245,158,11,.15); color: #fcd34d; border: 1px solid rgba(245,158,11,.3); }
+/* Project tab dot */
+.ws-tab-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0; margin-right: 2px;
+}
+/* Association modal radio options */
+.ws-assoc-options { display: flex; flex-direction: column; gap: 10px; }
+.ws-assoc-option {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: #ccc; cursor: pointer;
+}
+.ws-assoc-option input { accent-color: var(--accent); cursor: pointer; }
+/* Project Links settings */
+.ws-settings-link-row { display: flex; gap: 6px; align-items: center; }
+.ws-settings-link-url {
+  flex: 1; min-width: 0; color: var(--accent); font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-decoration: none;
+}
+.ws-settings-link-url:hover { text-decoration: underline; }
+.ws-settings-coming-soon { font-size: 9px; font-weight: 400; color: #555; text-transform: none; letter-spacing: 0; }
 /* Usage stats */
 .ws-settings-stats { display: flex; flex-direction: column; gap: 4px; }
 .ws-settings-stat {

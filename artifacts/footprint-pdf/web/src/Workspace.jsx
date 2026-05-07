@@ -634,7 +634,15 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // Search
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const searchResults = searchQuery ? buildSearchResults(pageTexts, searchQuery) : [];
+  // Active document derived values (activeDocId=null → primary doc from props)
+  const activeDoc        = activeDocId ? (extraDocs.find(d => d.id === activeDocId) ?? null) : null;
+  const activePageTexts  = activeDoc ? activeDoc.pageTexts  : pageTexts;
+  const activePageTitles = activeDoc ? activeDoc.pageTitles : pageTitles;
+  const activePageSheets = activeDoc ? activeDoc.pageSheets : pageSheets;
+  const activeNumPages   = activeDoc ? activeDoc.numPages   : (numPages || meta.pages);
+  const activeMeta       = activeDoc ? { filename: activeDoc.name, pages: activeDoc.numPages } : meta;
+
+  const searchResults = searchQuery ? buildSearchResults(activePageTexts, searchQuery) : [];
 
   // Page num input (local, committed on blur/enter)
   const [pageInputVal, setPageInputVal] = useState("1");
@@ -664,6 +672,20 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const [keywordThreshold,setKeywordThreshold]= useState(() => parseInt(localStorage.getItem("navigator-keyword-threshold") || "3", 10));
   const [contextFiles,    setContextFiles]    = useState(() => { try { return JSON.parse(localStorage.getItem(`navigator-context-files-${meta.filename}`) || "[]"); } catch { return []; } });
   const [usageStats,      setUsageStats]      = useState({ geminiCalls: 0, fromMemory: 0, fromKeywords: 0, fromSummary: 0 });
+  // Multi-doc / Projects
+  const [extraDocs,       setExtraDocs]       = useState([]); // [{id,name,pdfDoc,pdfBytes,pageTexts,pageTitles,pageSheets,numPages,projectId}]
+  const [activeDocId,     setActiveDocId]     = useState(null); // null = primary (props)
+  const [projects,        setProjects]        = useState([]); // [{id,name}]
+  const [primaryProjectId,setPrimaryProjectId]= useState(null); // project the primary doc belongs to
+  const [pendingFile,     setPendingFile]     = useState(null);
+  const [openAssocModal,  setOpenAssocModal]  = useState(false);
+  const [assocChoice,     setAssocChoice]     = useState("standalone"); // "standalone"|"existing"|"new"
+  const [assocProjectId,  setAssocProjectId]  = useState("");
+  const [assocNewName,    setAssocNewName]    = useState("");
+  const [loadingExtraDoc, setLoadingExtraDoc] = useState(false);
+  // Project Links
+  const [projectLinks,    setProjectLinks]    = useState([]); // [{url,addedAt}]
+  const [linkInput,       setLinkInput]       = useState("");
   // Editable staging for settings (committed on Save)
   const [stgPrompt,       setStgPrompt]       = useState(() => localStorage.getItem("navigator-system-prompt") || "");
   const [stgResponseLen,  setStgResponseLen]  = useState(() => localStorage.getItem("navigator-response-length") || "medium");
@@ -766,6 +788,10 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const renderTaskRef       = useRef(null);
   const menuBarRef          = useRef(null);
   const fileInputRef        = useRef(null);
+  const addDocInputRef      = useRef(null);
+  const primaryPdfDocRef    = useRef(null);
+  const primaryPdfBytesRef  = useRef(null);
+  const primaryNumPagesRef  = useRef(meta.pages || 0);
   const pendingScrollAdjRef = useRef(null); // { docX, docY, cx, cy, ratio }
   const pdfBytesRef         = useRef(null); // mutable bytes for pdf-lib ops
 
@@ -790,6 +816,9 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         pdfBytesRef.current = bytes;
         const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
         if (cancelled) { doc.destroy(); return; }
+        primaryPdfDocRef.current   = doc;
+        primaryPdfBytesRef.current = bytes;
+        primaryNumPagesRef.current = doc.numPages;
         setPdfDoc(doc);
         setNumPages(doc.numPages);
       } catch (err) {
@@ -801,6 +830,25 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     })();
     return () => { cancelled = true; };
   }, [file]);
+
+  // ── Tab switching — swap pdfDoc/numPages when activeDocId changes ───────────
+  useEffect(() => {
+    if (!activeDocId) {
+      if (primaryPdfDocRef.current) {
+        setPdfDoc(primaryPdfDocRef.current);
+        setNumPages(primaryNumPagesRef.current);
+        pdfBytesRef.current = primaryPdfBytesRef.current;
+      }
+    } else {
+      const doc = extraDocs.find(d => d.id === activeDocId);
+      if (doc) {
+        setPdfDoc(doc.pdfDoc);
+        setNumPages(doc.numPages);
+        pdfBytesRef.current = doc.pdfBytes ?? new Uint8Array();
+      }
+    }
+    setPageNum(1);
+  }, [activeDocId]); // eslint-disable-line
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -1631,22 +1679,22 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
     if (isPageCount) {
       console.log("[Navigator] pre-classification: PAGE_COUNT");
-      setChatMessages((prev) => [...prev, { role: "navigator", text: `This document has ${numPages || meta.pages} pages.`, results: [] }]);
+      setChatMessages((prev) => [...prev, { role: "navigator", text: `This document has ${activeNumPages} pages.`, results: [] }]);
       return;
     }
     if (isCurrentPg) {
       console.log("[Navigator] pre-classification: CURRENT_PAGE");
-      setChatMessages((prev) => [...prev, { role: "navigator", text: `You are on page ${pageNum} of ${numPages || meta.pages}.`, results: [] }]);
+      setChatMessages((prev) => [...prev, { role: "navigator", text: `You are on page ${pageNum} of ${activeNumPages}.`, results: [] }]);
       return;
     }
     if (isFileInfo) {
       console.log("[Navigator] pre-classification: FILE_INFO");
-      setChatMessages((prev) => [...prev, { role: "navigator", text: `The current document is "${meta.filename}".`, results: [] }]);
+      setChatMessages((prev) => [...prev, { role: "navigator", text: `The current document is "${activeMeta.filename}".`, results: [] }]);
       return;
     }
     if (navMatch) {
       const n = parseInt(navMatch[1], 10);
-      const target = Math.max(1, Math.min(numPages || meta.pages, n));
+      const target = Math.max(1, Math.min(activeNumPages, n));
       console.log("[Navigator] pre-classification: NAV_COMMAND →", target);
       jumpToPage(target);
       setChatMessages((prev) => [...prev, { role: "navigator", text: `Navigating to page ${target}.`, results: [] }]);
@@ -1679,7 +1727,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     const sheetMatch = q.match(/^([A-Za-z]{1,3}[-.]?\d{1,2}[-.]\d{2,3}|[A-Za-z]\d{3})$/);
     if (sheetMatch) {
       const sheet = sheetMatch[1].toUpperCase();
-      const idx = pageTexts?.findIndex((pt) => pt && pt.toUpperCase().includes(sheet));
+      const idx = activePageTexts?.findIndex((pt) => pt && pt.toUpperCase().includes(sheet));
       if (idx >= 0) {
         jumpToPage(idx + 1);
         setChatMessages((prev) => [...prev,
@@ -1692,7 +1740,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     }
 
     // Keyword search
-    const allResults = buildSearchResults(pageTexts, q);
+    const allResults = buildSearchResults(activePageTexts, q);
     const topResults = allResults.slice(0, 5);
     console.log(`[Navigator] keyword results for "${q}":`, allResults.length);
 
@@ -1740,17 +1788,33 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     // Build context with title + sheet metadata
     const makeContextPage = (n) => ({
       page: n,
-      text: pageTexts[n - 1] || "",
-      title: pageTitles?.[n - 1] || undefined,
-      sheet: pageSheets?.[n - 1] || undefined,
+      text: activePageTexts[n - 1] || "",
+      title: activePageTitles?.[n - 1] || undefined,
+      sheet: activePageSheets?.[n - 1] || undefined,
     });
 
     const MAX_CONTEXT  = 15;
-    const totalPages   = pageTexts?.length || 0;
+    const totalPages   = activePageTexts?.length || 0;
     let   summaryCtx   = docSummary ? _summaryToText(docSummary) : undefined;
+    // contextFiles (legacy context snippets)
     if (contextFiles.length > 0) {
       const fileCtx = contextFiles.map((f) => `[File: ${f.name}]\n${f.text.slice(0, 3000)}`).join("\n\n");
       summaryCtx = summaryCtx ? `${summaryCtx}\n\nAdditional project context:\n${fileCtx}` : fileCtx;
+    }
+    // Other docs in the same project as the active doc
+    const activeProjectId = activeDoc ? activeDoc.projectId : primaryProjectId;
+    if (activeProjectId) {
+      const projPeers = extraDocs.filter(d => d.id !== activeDocId && d.projectId === activeProjectId);
+      // Also include primary if it belongs to same project but we are viewing an extra doc
+      const primaryPeer = (activeDocId && primaryProjectId === activeProjectId)
+        ? [{ name: meta.filename, pageTexts }] : [];
+      const allPeers = [...primaryPeer, ...projPeers.map(d => ({ name: d.name, pageTexts: d.pageTexts }))];
+      if (allPeers.length > 0) {
+        const projCtx = allPeers
+          .map(d => `[Project doc: ${d.name}]\n${(d.pageTexts || []).slice(0, 8).join(" ").slice(0, 4000)}`)
+          .join("\n\n");
+        summaryCtx = summaryCtx ? `${summaryCtx}\n\nOther project documents:\n${projCtx}` : `Other project documents:\n${projCtx}`;
+      }
     }
     const usedSummary = !!summaryCtx;
 
@@ -1768,7 +1832,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         .slice(0, 3)
         .map((r) => makeContextPage(r.page));
       if (!summaryCtx && matchedPages.length < 3) {
-        const extra = (pageTexts || [])
+        const extra = (activePageTexts || [])
           .slice(0, 5)
           .map((_, i) => makeContextPage(i + 1))
           .filter((p) => !seenPages.has(p.page));
@@ -1779,11 +1843,9 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       contextStrategy = summaryCtx ? "keyword-match+summary" : "keyword-match";
     } else if (isBroadQuery) {
       if (summaryCtx) {
-        // Summary alone covers broad questions — zero extra pages
         contextPages     = [];
         contextStrategy  = "summary-only (broad)";
       } else {
-        // No summary — sample every 5th page across the document
         const seenPages = new Set([1, 2, 3]);
         const sampled   = [1, 2, 3].map(makeContextPage);
         for (let p = 5; p <= totalPages && sampled.length < MAX_CONTEXT; p += 5) {
@@ -1793,9 +1855,8 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         contextStrategy = "broad-sample (every 5th page)";
       }
     } else {
-      // Default: first few pages + summary if available
       const count     = summaryCtx ? 3 : 5;
-      contextPages    = (pageTexts || []).slice(0, count).map((_, i) => makeContextPage(i + 1));
+      contextPages    = (activePageTexts || []).slice(0, count).map((_, i) => makeContextPage(i + 1));
       contextStrategy = summaryCtx ? "summary+first-3-pages" : "first-5-pages";
     }
 
@@ -1907,7 +1968,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         return next;
       });
     }
-  }, [chatInput, pageTexts, jumpToPage, numPages, pageNum, meta, docSummary, keywordThreshold, contextFiles, customPrompt, responseLength, navigatorMode, customModelsEnabled, customModelConfig]);
+  }, [chatInput, activePageTexts, activePageTitles, activePageSheets, activeNumPages, activeMeta, activeDoc, activeDocId, jumpToPage, numPages, pageNum, meta, pageTexts, primaryProjectId, extraDocs, docSummary, keywordThreshold, contextFiles, customPrompt, responseLength, navigatorMode, customModelsEnabled, customModelConfig]);
 
   const startChatResize = useCallback((e) => {
     e.preventDefault();
@@ -1980,6 +2041,84 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       return next;
     });
   }, [meta.filename]);
+
+  // ── Multi-doc handlers ─────────────────────────────────────────────────────
+
+  const loadExtraDoc = useCallback(async (file, projectId) => {
+    const MAX_DOCS = 5; // 1 primary + 4 extra
+    if (extraDocs.length >= MAX_DOCS - 1) {
+      showToast(`Maximum ${MAX_DOCS} documents per project`);
+      return;
+    }
+    setLoadingExtraDoc(true);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+      const texts = [];
+      const titles = [];
+      const sheets = [];
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const pg = await pdf.getPage(p);
+        const ct = await pg.getTextContent();
+        const t = ct.items.map(i => i.str).join(" ");
+        texts.push(t);
+        // Simple title/sheet extraction — look for common title block patterns
+        const titleMatch = t.match(/drawing title[:\s]+([^\n]{3,60})/i) || t.match(/^([A-Z0-9][^\n]{2,50})\n/);
+        titles.push(titleMatch ? titleMatch[1].trim() : "");
+        const sheetMatch = t.match(/^([A-Za-z]{1,3}[-.]?\d{1,2}[-.]\d{2,3})\b/) || t.match(/\bsheet[:\s]+([A-Z0-9.-]{2,12})/i);
+        sheets.push(sheetMatch ? sheetMatch[1].trim() : "");
+      }
+      const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const entry = { id, name: file.name, pdfDoc: pdf, pdfBytes: bytes, pageTexts: texts, pageTitles: titles, pageSheets: sheets, numPages: pdf.numPages, projectId: projectId || null };
+      setExtraDocs(prev => [...prev, entry]);
+      setActiveDocId(id);
+    } catch (err) {
+      console.error("[loadExtraDoc] failed:", err?.message);
+      showToast("Failed to load document");
+    } finally {
+      setLoadingExtraDoc(false);
+    }
+  }, [extraDocs, showToast]);
+
+  const confirmAssoc = useCallback(async () => {
+    if (!pendingFile) return;
+    if (assocChoice === "standalone") {
+      setPendingFile(null);
+      setOpenAssocModal(false);
+      onNewFile();
+      return;
+    }
+    let targetProjectId = assocProjectId;
+    if (assocChoice === "new") {
+      const name = assocNewName.trim() || "Untitled Project";
+      const newId = `proj-${Date.now()}`;
+      setProjects(prev => [...prev, { id: newId, name }]);
+      targetProjectId = newId;
+    }
+    setPendingFile(null);
+    setOpenAssocModal(false);
+    await loadExtraDoc(pendingFile, targetProjectId);
+  }, [pendingFile, assocChoice, assocProjectId, assocNewName, onNewFile, loadExtraDoc]);
+
+  const removeExtraDoc = useCallback((id) => {
+    setExtraDocs(prev => prev.filter(d => d.id !== id));
+    setActiveDocId(prev => (prev === id ? null : prev));
+  }, []);
+
+  // Project Links handlers
+  const addProjectLink = useCallback(() => {
+    const url = linkInput.trim();
+    if (!url) return;
+    if (!/^https?:\/\/.+/i.test(url)) { showToast("URL must start with http:// or https://"); return; }
+    if (projectLinks.some(l => l.url === url)) { showToast("Link already added"); return; }
+    setProjectLinks(prev => [...prev, { url, addedAt: new Date().toISOString() }]);
+    setLinkInput("");
+  }, [linkInput, projectLinks, showToast]);
+
+  const removeProjectLink = useCallback((url) => {
+    setProjectLinks(prev => prev.filter(l => l.url !== url));
+  }, []);
 
   const handleClearMemory = useCallback(() => {
     if (window.confirm("Clear all session memory? Navigator will not recall previous answers.")) {
@@ -2219,14 +2358,105 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         ))}
       </div>
 
-      <input ref={fileInputRef} type="file" accept="application/pdf" hidden onChange={(e) => { if (e.target.files?.[0]) onNewFile(); }} />
+      {/* File inputs */}
+      <input ref={fileInputRef} type="file" accept="application/pdf" hidden onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        e.target.value = "";
+        setPendingFile(f);
+        setAssocChoice("standalone");
+        setAssocProjectId(projects[0]?.id || "");
+        setAssocNewName("");
+        setOpenAssocModal(true);
+      }} />
+      <input ref={addDocInputRef} type="file" accept="application/pdf" hidden onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) { e.target.value = ""; loadExtraDoc(f, null); }
+      }} />
+
+      {/* ── Association Modal ── */}
+      {openAssocModal && (
+        <div className="ws-overlay" onClick={(e) => { if (e.target === e.currentTarget) setOpenAssocModal(false); }}>
+          <div className="ws-modal">
+            <div className="ws-modal-header">
+              <span className="ws-modal-title">Open Document</span>
+              <button className="ws-modal-close" onClick={() => setOpenAssocModal(false)}>×</button>
+            </div>
+            <div className="ws-modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "#ccc" }}>
+                Would you like to associate <strong style={{ color: "#fff" }}>{pendingFile?.name}</strong> with a project?
+              </p>
+              <div className="ws-assoc-options">
+                {projects.length > 0 && (
+                  <label className="ws-assoc-option">
+                    <input type="radio" name="assoc" value="existing" checked={assocChoice === "existing"} onChange={() => setAssocChoice("existing")} />
+                    <span>Add to existing project</span>
+                  </label>
+                )}
+                {assocChoice === "existing" && projects.length > 0 && (
+                  <select className="ws-modal-input" style={{ marginTop: 4 }} value={assocProjectId} onChange={(e) => setAssocProjectId(e.target.value)}>
+                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                )}
+                <label className="ws-assoc-option">
+                  <input type="radio" name="assoc" value="new" checked={assocChoice === "new"} onChange={() => setAssocChoice("new")} />
+                  <span>Create new project</span>
+                </label>
+                {assocChoice === "new" && (
+                  <input
+                    className="ws-modal-input" style={{ marginTop: 4 }}
+                    placeholder="Project name"
+                    value={assocNewName}
+                    onChange={(e) => setAssocNewName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") confirmAssoc(); }}
+                    autoFocus
+                  />
+                )}
+                <label className="ws-assoc-option">
+                  <input type="radio" name="assoc" value="standalone" checked={assocChoice === "standalone"} onChange={() => setAssocChoice("standalone")} />
+                  <span>No, open as standalone document</span>
+                </label>
+              </div>
+              {loadingExtraDoc && <p style={{ margin: 0, fontSize: 12, color: "var(--accent)" }}>Loading document…</p>}
+            </div>
+            <div className="ws-modal-footer">
+              <button className="ws-settings-reset" onClick={() => setOpenAssocModal(false)}>Cancel</button>
+              <button className="ws-settings-save" onClick={confirmAssoc} disabled={loadingExtraDoc}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Tab Bar ── */}
       <div className="ws-tabbar">
-        <div className="ws-tab active">
-          <span className="ws-tab-name" title={meta.filename}>{meta.filename}</span>
-          <button className="ws-tab-close" onClick={onNewFile} title="Close document">×</button>
+        {/* Primary doc tab */}
+        <div
+          className={`ws-tab${!activeDocId ? " active" : ""}${primaryProjectId ? " ws-tab--project" : ""}`}
+          onClick={() => setActiveDocId(null)}
+          title={meta.filename}
+        >
+          {primaryProjectId && <span className="ws-tab-dot" />}
+          <span className="ws-tab-name">{meta.filename}</span>
+          {extraDocs.length === 0
+            ? <button className="ws-tab-close" onClick={(e) => { e.stopPropagation(); onNewFile(); }} title="Close document">×</button>
+            : null}
         </div>
+        {/* Extra doc tabs */}
+        {extraDocs.map((doc) => {
+          const proj = projects.find(p => p.id === doc.projectId);
+          return (
+            <div
+              key={doc.id}
+              className={`ws-tab${activeDocId === doc.id ? " active" : ""}${doc.projectId ? " ws-tab--project" : ""}`}
+              onClick={() => setActiveDocId(doc.id)}
+              title={`${doc.name}${proj ? ` · ${proj.name}` : ""}`}
+            >
+              {doc.projectId && <span className="ws-tab-dot" />}
+              <span className="ws-tab-name">{doc.name}</span>
+              <button className="ws-tab-close" onClick={(e) => { e.stopPropagation(); removeExtraDoc(doc.id); }} title="Close">×</button>
+            </div>
+          );
+        })}
       </div>
 
       {/* ── Body ── */}
@@ -2673,22 +2903,89 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
                   {/* S4: Project Files */}
                   <div className="ws-settings-section">
-                    <div className="ws-settings-section-title">Project Files</div>
-                    <p className="ws-settings-desc">Upload additional documents (specs, RFIs, submittals) to give Navigator more context.</p>
-                    <label
-                      className="ws-settings-drop"
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => { e.preventDefault(); handleContextFileAdd(e.dataTransfer.files); }}
-                    >
-                      <input type="file" accept="application/pdf" multiple hidden onChange={(e) => handleContextFileAdd(e.target.files)} />
-                      Drop PDFs here or click to browse
-                    </label>
-                    {contextFiles.length > 0 && (
+                    <div className="ws-settings-section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>Project Files</span>
+                      <span className="ws-settings-doc-count">{1 + extraDocs.length + contextFiles.length} of 5 documents</span>
+                    </div>
+                    {/* Project name */}
+                    <div className="ws-settings-field">
+                      <div className="ws-settings-field-label">Project Name</div>
+                      <input
+                        className="ws-modal-input"
+                        style={{ fontSize: 12, padding: "5px 8px" }}
+                        placeholder="Untitled Project"
+                        value={projects.find(p => p.id === primaryProjectId)?.name ?? ""}
+                        onChange={(e) => {
+                          const name = e.target.value;
+                          if (primaryProjectId) {
+                            setProjects(prev => prev.map(p => p.id === primaryProjectId ? { ...p, name } : p));
+                          } else if (name.trim()) {
+                            const newId = `proj-${Date.now()}`;
+                            setProjects(prev => [...prev, { id: newId, name }]);
+                            setPrimaryProjectId(newId);
+                          }
+                        }}
+                      />
+                    </div>
+                    <p className="ws-settings-desc">Attach related documents to this project. Navigator searches all project docs together.</p>
+                    {/* Doc list */}
+                    <div className="ws-settings-file-list">
+                      {/* Primary (non-removable) */}
+                      <div className="ws-settings-file-item">
+                        <span className="ws-settings-file-primary">Primary</span>
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginLeft: 6 }}>{meta.filename}</span>
+                      </div>
+                      {/* Extra tabs */}
+                      {extraDocs.map((d) => (
+                        <div key={d.id} className="ws-settings-file-item">
+                          <span className="ws-settings-file-tab">Tab</span>
+                          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginLeft: 6 }}>{d.name}</span>
+                          <button className="ws-settings-file-remove" onClick={() => removeExtraDoc(d.id)} title="Remove">×</button>
+                        </div>
+                      ))}
+                      {/* Context files */}
+                      {contextFiles.map((f) => (
+                        <div key={f.name} className="ws-settings-file-item">
+                          <span className="ws-settings-file-ctx">Ctx</span>
+                          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginLeft: 6 }}>{f.name}</span>
+                          <button className="ws-settings-file-remove" onClick={() => handleContextFileRemove(f.name)} title="Remove">×</button>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Upload drop zone — only if under limit */}
+                    {(1 + extraDocs.length + contextFiles.length) < 5 && (
+                      <label
+                        className="ws-settings-drop"
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => { e.preventDefault(); handleContextFileAdd(e.dataTransfer.files); }}
+                      >
+                        <input type="file" accept="application/pdf" multiple hidden onChange={(e) => handleContextFileAdd(e.target.files)} />
+                        Drop PDFs here or click to browse
+                      </label>
+                    )}
+                  </div>
+
+                  {/* S5: Project Links */}
+                  <div className="ws-settings-section">
+                    <div className="ws-settings-section-title">Project Links <span className="ws-settings-coming-soon">(integrations coming soon)</span></div>
+                    <p className="ws-settings-desc">Paste URLs to related resources — Procore, Bluebeam Studio, Google Drive, etc.</p>
+                    <div className="ws-settings-link-row">
+                      <input
+                        className="ws-modal-input"
+                        style={{ fontSize: 12, padding: "5px 8px", flex: 1 }}
+                        placeholder="https://"
+                        value={linkInput}
+                        onChange={(e) => setLinkInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addProjectLink(); } }}
+                      />
+                      <button className="ws-settings-save" onClick={addProjectLink} style={{ flexShrink: 0 }}>Add Link</button>
+                    </div>
+                    {projectLinks.length > 0 && (
                       <div className="ws-settings-file-list">
-                        {contextFiles.map((f) => (
-                          <div key={f.name} className="ws-settings-file-item">
-                            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                            <button className="ws-settings-file-remove" onClick={() => handleContextFileRemove(f.name)} title="Remove">×</button>
+                        {projectLinks.map((l) => (
+                          <div key={l.url} className="ws-settings-file-item">
+                            <a href={l.url} target="_blank" rel="noopener noreferrer" className="ws-settings-link-url">{l.url}</a>
+                            <button className="ws-settings-file-remove" onClick={() => removeProjectLink(l.url)} title="Remove">×</button>
                           </div>
                         ))}
                       </div>

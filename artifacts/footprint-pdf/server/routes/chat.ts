@@ -76,6 +76,22 @@ NAVIGATOR AI CHAT
 - System prompt editor, cost tracker, and session memory controls inside chat settings
 
 ──────────────────────────────────────────
+MULTI-DOCUMENT PROJECTS
+──────────────────────────────────────────
+Footprint Navigator supports multi-document projects in the current session:
+- Up to 5 documents per project (1 primary + up to 4 additional tabs)
+- Open a second PDF using File → Open; choose "Add to existing project" or "Create new project"
+- Each open document appears as a tab at the top of the viewer
+- Click any tab to switch to that document
+- Navigator automatically searches all documents in the same project when answering questions
+- Answers from non-active documents are cited: "In Specifications.pdf, page 47…"
+- If the answer is only in another project document: "I did not find that in [active file] but found this in [other file] page X:"
+- Add related documents in Settings → Project Files (the upload area there adds context-only snippets)
+- Name your project in Settings → Project Files → Project Name field
+- Project Links in Settings let you paste URLs to related resources (Procore, Google Drive, etc.) — full integration coming soon
+- Project data is session-only — re-upload documents each session
+
+──────────────────────────────────────────
 NOT YET FUNCTIONAL
 ──────────────────────────────────────────
 Count tool: visible in toolbar but not yet working — in development.
@@ -83,7 +99,6 @@ Bookmarks panel: not yet built.
 Layers panel: not yet built.
 Markup and annotation tools: not yet built.
 Highlight tool: not yet built.
-Multiple documents simultaneously: not yet built.
 Persistent project storage: not yet built — documents must be re-uploaded each session.
 Offline mode: not yet built.
 Desktop app: not yet built.
