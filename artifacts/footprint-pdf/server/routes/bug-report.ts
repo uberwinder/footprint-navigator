@@ -103,7 +103,7 @@ router.post("/bug-report", async (req: Request, res: Response) => {
     try {
       const resend = new Resend(apiKey);
       await resend.emails.send({
-        from:    "Footprint Navigator <onboarding@resend.dev>",
+        from:    "Footprint Navigator <noreply@footprintnavigator.com>",
         to:      [TO_EMAIL],
         subject: `[Bug Report] ${summary.slice(0, 80)} — ${new Date().toLocaleDateString("en-US")}`,
         html:    buildEmailHtml(summary, ctx),

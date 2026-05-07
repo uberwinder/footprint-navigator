@@ -276,7 +276,7 @@ router.post("/feedback", async (req: Request, res: Response) => {
       const resend = new Resend(apiKey);
       const name   = [firstName, lastName].filter(Boolean).join(" ") || "Anonymous";
       await resend.emails.send({
-        from:    "Footprint Navigator <onboarding@resend.dev>",
+        from:    "Footprint Navigator <noreply@footprintnavigator.com>",
         to:      [TO_EMAIL],
         subject: `[Feedback] ${name} — ${new Date().toLocaleDateString("en-US")}`,
         html:    buildEmailHtml({ firstName, lastName, email, company, ratings, openFeedback }),
