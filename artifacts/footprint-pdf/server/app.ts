@@ -14,4 +14,8 @@ app.get("/pdf-api", (_req: Request, res: Response) => {
   res.json({ name: "footprint-pdf", status: "ok" });
 });
 
+app.get("/pdf-api/ping", (_req: Request, res: Response) => {
+  res.json({ ok: true });
+});
+
 export default app;
