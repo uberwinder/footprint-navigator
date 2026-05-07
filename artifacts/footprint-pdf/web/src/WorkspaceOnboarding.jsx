@@ -20,7 +20,7 @@ const FEATURES = [
   {
     title: "Project Files",
     intro:
-      "Navigator can work with up to 5 related documents at once in a single project. Add specs, RFIs, submittals, or any related PDF via Settings → Project Files. Give your project a name, add your documents, and Navigator will search all of them together — always telling you which document an answer came from. You can also paste project links like Procore or other PM tool URLs to keep everything in one place. Full integrations are currently in development.",
+      "Navigator can work with up to 5 related documents at once in a single project. Add specs, RFIs, submittals, or any related PDF via Settings → Project Files. Give your project a name, add your documents, and Navigator will search all of them together — always telling you which document an answer came from. You can also paste project links to keep everything in one place. Full integrations are currently in development.",
   },
   {
     title: "Keyword Search",
