@@ -1,0 +1,193 @@
+Add a smart multi-file upload system to the app. Here is 
+exactly how it should work:
+
+MULTI-FILE DRAG AND DROP:
+Update the upload/landing screen to accept multiple PDF 
+files at once via drag and drop or file picker.
+- Maximum 500 files at once
+- Maximum 2GB total combined size
+- If total size exceeds 2GB show error:
+  "Total file size exceeds 2GB limit. Please reduce 
+  the number of files and try again."
+- Each individual file still limited to 500MB
+
+WHEN MORE THAN ONE FILE IS DROPPED OR SELECTED:
+Show a modal dialog with two clear options:
+
+OPTION 1 — COMBINE INTO ONE PDF:
+Button: "Combine into one PDF"
+This triggers the combine flow described below.
+
+OPTION 2 — OPEN AS SEPARATE TABS:
+Button: "Open as separate tabs"
+This triggers the multi-doc project flow:
+- Opens each file as a separate tab exactly as 
+  the existing multi-doc system works
+- After opening, asks: "Are these files part of 
+  the same project?"
+- Yes: associates all tabs into the same project, 
+  Navigator searches all of them together
+- No: each tab is standalone, Navigator only 
+  searches the active tab
+
+COMBINE FLOW:
+When user selects "Combine into one PDF":
+
+STEP 1 — AUTO SORT:
+Automatically sort the files using construction 
+document discipline order:
+Priority 1: G, 00, Cover — General
+Priority 2: D — Demolition  
+Priority 3: C — Civil
+Priority 4: L — Landscape
+Priority 5: S — Structural
+Priority 6: A — Architectural
+Priority 7: ID — Interior Design
+Priority 8: M — Mechanical
+Priority 9: P — Plumbing
+Priority 10: E — Electrical
+Priority 11: FP — Fire Protection
+Priority 12: FA — Fire Alarm
+Priority 13: Everything else alphabetically
+
+Within each discipline sort by sheet number 
+numerically so A1.01 comes before A1.02, A2.01, 
+A5.01 etc.
+
+Detect the discipline prefix from the filename 
+using these patterns:
+- Filename starts with the prefix letter(s) 
+  followed by a number or dot
+- Examples: "A1.01 Floor Plan.pdf", "E2.03.pdf", 
+  "ID900 Schedule.pdf", "P0.00 Plumbing Notes.pdf"
+- If no prefix detected, sort alphabetically at 
+  the end
+
+STEP 2 — SHOW SORTED ORDER:
+Show the user a list of all files in the sorted 
+order before combining. Each file shows:
+- Detected discipline prefix and name
+- File size
+- A drag handle so the user can manually reorder 
+  any files that were sorted incorrectly
+- A remove button to exclude any file from the 
+  combined PDF
+
+Also show:
+- Total file count
+- Total combined size estimate
+- A name field for the combined PDF, 
+  default: "Combined Documents.pdf"
+
+STEP 3 — COMBINE AND OPEN:
+Two buttons at the bottom:
+- "Combine and Open" — combines and opens in viewer
+- "Cancel" — goes back to upload screen
+
+When user clicks "Combine and Open":
+- Use pdf-lib to merge all PDFs in the displayed 
+  order into one combined PDF entirely in the browser
+- Show a progress indicator: "Combining X of Y files..."
+- After combining, automatically trigger a browser 
+  download of the combined PDF so the user has a 
+  permanent copy saved to their computer
+- Then open the combined PDF in the Navigator viewer
+- The combined PDF name is whatever the user typed 
+  in the name field
+
+REORDERING PAGES AFTER COMBINE:
+The thumbnail panel already supports reordering pages.
+Confirm this works correctly after a combined PDF is 
+opened. If it does not work, fix it so the user can 
+drag thumbnails to reorder pages and the viewer 
+updates immediately.
+
+SYSTEM PROMPT UPDATE:
+Add this construction document knowledge to the 
+Navigator AI system prompt so it can answer 
+discipline-based questions:
+
+CONSTRUCTION DOCUMENT DISCIPLINE ORDER:
+G / 00 / Cover = General notes, symbols, code info
+D = Demolition
+C = Civil / site work
+L = Landscape
+S = Structural
+A = Architectural
+ID = Interior Design
+M = Mechanical
+P = Plumbing
+E = Electrical
+FP = Fire Protection
+FA = Fire Alarm / low voltage / telecom / security
+
+SHEET NUMBER FORMAT:
+Sheets follow the format PREFIX + NUMBER + SEQUENCE
+Example: E2.03 = Electrical, plan type, 3rd sheet
+Middle number meaning:
+0 = General info, legends, notes
+1 = Plans
+2 = Enlarged plans
+3 = Elevations
+4 = Sections
+5 = Details
+6 = Schedules
+7 = Diagrams
+8 = 3D / isometrics
+9 = Misc / reference
+
+SPEC NUMBERING (CSI MasterFormat):
+Division 03 = Concrete
+Division 05 = Metals
+Division 06 = Wood
+Division 07 = Waterproofing / Roofing
+Division 08 = Doors and Windows
+Division 09 = Finishes
+Division 22 = Plumbing
+Division 23 = HVAC
+Division 26 = Electrical
+Example: 09 65 00 = Resilient Flooring
+Example: 23 81 13 = PTAC Units
+Example: 26 51 00 = Interior Lighting
+
+REVISION TYPES:
+ASI, Bulletin, Addendum, Revision, Delta, SK 
+are all types of document changes.
+Revisions shown by revision clouds, delta symbols 
+(triangle with number), and revision blocks in 
+title block.
+
+GOLDEN RULE:
+If one sheet mentions it, the contractor owns it 
+even if another sheet forgot to include it. The 
+drawings, general notes and specifications are 
+complementary.
+
+When user asks questions like:
+- "Show me all electrical plans" → look for E prefix sheets
+- "Find the structural details" → look for S prefix sheets
+- "Where are the plumbing specs" → look for P prefix 
+  sheets and Division 22 specs
+- "What revision is this drawing" → look for revision 
+  block in title block area
+- "Find all PTAC unit references" → search for 23 81 13 
+  and PTAC across all pages
+
+TECHNICAL REQUIREMENTS:
+- pdf-lib already installed, use it for combining
+- All combining happens entirely in the browser, 
+  no server involvement
+- The server never receives individual files, 
+  only the final combined PDF
+- Progress indicator must update as each file is 
+  added to the combined PDF
+- The download must trigger automatically before 
+  opening in the viewer
+- If combining fails for any file show which file 
+  failed and continue with the rest
+- The existing single file upload flow must still 
+  work exactly as before
+- Do not break any existing functionality
+
+Show me the implementation plan and which files 
+will change before writing any code.
