@@ -2079,3 +2079,361 @@ button { font-family: inherit; }
   flex-shrink: 0;
 }
 @keyframes ws-spin { to { transform: rotate(360deg); } }
+
+/* ══════════════════════════════════════════════════════════════
+   Multi-file upload modals  (mf-*)
+   ══════════════════════════════════════════════════════════════ */
+
+.mf-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, .72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.mf-modal {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .6);
+}
+
+.mf-modal--wide { max-width: 640px; }
+
+.mf-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.mf-modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f4f6fa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mf-modal-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color .15s, background .15s;
+  flex-shrink: 0;
+}
+.mf-modal-close:hover { color: #fff; background: #333; }
+
+.mf-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.mf-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+
+.mf-modal-desc {
+  font-size: 13px;
+  color: #9aa3b2;
+  margin: 0 0 16px;
+}
+
+.mf-modal-size-info {
+  font-size: 12px;
+  color: #555;
+  margin: 12px 0 0;
+  text-align: center;
+}
+
+/* ── Choice buttons ──────────────────────────────────────────── */
+
+.mf-choice-row {
+  display: flex;
+  gap: 12px;
+}
+
+.mf-choice-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  background: #111;
+  border: 1.5px solid #2a2a2a;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s, background .15s;
+  color: inherit;
+}
+.mf-choice-btn:hover {
+  border-color: #007bff;
+  background: #0d1a2e;
+}
+
+.mf-choice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #1a2a3a;
+  border-radius: 8px;
+}
+
+.mf-choice-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f4f6fa;
+}
+
+.mf-choice-sub {
+  font-size: 12px;
+  color: #7a8599;
+  line-height: 1.4;
+}
+
+/* ── Same-project checkbox ───────────────────────────────────── */
+
+.mf-same-project {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #9aa3b2;
+  line-height: 1.4;
+}
+.mf-same-project input[type="checkbox"] {
+  margin: 2px 0 0;
+  accent-color: #007bff;
+  flex-shrink: 0;
+}
+
+/* ── File list (sort / combine modal) ───────────────────────── */
+
+.mf-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+  margin-bottom: 4px;
+}
+
+.mf-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 7px;
+  cursor: grab;
+  user-select: none;
+  transition: background .12s, border-color .12s;
+}
+.mf-file-row:hover { background: #161616; border-color: #333; }
+.mf-file-row:active { cursor: grabbing; }
+
+.mf-drag-handle {
+  color: #444;
+  font-size: 16px;
+  cursor: grab;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.mf-file-row:hover .mf-drag-handle { color: #777; }
+
+.mf-discipline-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: 2px 6px;
+  background: #1a2a3a;
+  color: #007bff;
+  border-radius: 4px;
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+}
+
+.mf-file-name {
+  flex: 1;
+  font-size: 12px;
+  color: #d0d6e2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mf-file-size {
+  font-size: 11px;
+  color: #555;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.mf-file-remove {
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color .12s, background .12s;
+}
+.mf-file-remove:hover { color: #ff5a5f; background: #2a1010; }
+
+/* ── Combine footer (meta + name field) ─────────────────────── */
+
+.mf-combine-footer {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mf-combine-meta {
+  font-size: 12px;
+  color: #555;
+}
+
+.mf-combine-name-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mf-combine-name-label {
+  font-size: 11px;
+  color: #7a8599;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.mf-name-input {
+  width: 100%;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #f4f6fa;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color .15s;
+}
+.mf-name-input:focus { border-color: #007bff; }
+
+/* ── Combine progress ────────────────────────────────────────── */
+
+.mf-progress-wrap { padding: 8px 0 16px; }
+
+.mf-progress-label {
+  font-size: 14px;
+  color: #c0c8d8;
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+.mf-progress-file {
+  font-size: 12px;
+  color: #7a8599;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mf-progress-bar {
+  height: 6px;
+  background: #222;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mf-progress-fill {
+  height: 100%;
+  background: #007bff;
+  border-radius: 3px;
+  transition: width .25s ease;
+}
+
+/* ── Error list ──────────────────────────────────────────────── */
+
+.mf-errors {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #1a0d0d;
+  border: 1px solid #4a1010;
+  border-radius: 7px;
+  font-size: 12px;
+  color: #ff8a8a;
+  line-height: 1.5;
+}
+
+/* ── Footer buttons ──────────────────────────────────────────── */
+
+.mf-btn-primary {
+  padding: 9px 20px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s;
+}
+.mf-btn-primary:hover:not(:disabled) { background: #339cff; }
+.mf-btn-primary:disabled { background: #2a3a4a; color: #555; cursor: default; }
+
+.mf-btn-ghost {
+  padding: 9px 16px;
+  background: transparent;
+  color: #9aa3b2;
+  border: 1px solid #333;
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.mf-btn-ghost:hover { color: #f4f6fa; border-color: #555; background: #1a1a1a; }

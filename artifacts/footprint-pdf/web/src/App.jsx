@@ -7,6 +7,7 @@ import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
+// ── Error boundary ────────────────────────────────────────────────────────────
 class WorkspaceErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -39,7 +40,48 @@ class WorkspaceErrorBoundary extends Component {
   }
 }
 
+// ── Discipline detection & sort ───────────────────────────────────────────────
+const DISCIPLINE_ORDER = ["G", "D", "C", "L", "S", "A", "ID", "M", "P", "E", "FP", "FA"];
+const DISCIPLINE_NAMES = {
+  G: "General", D: "Demolition", C: "Civil", L: "Landscape",
+  S: "Structural", A: "Architectural", ID: "Interior Design",
+  M: "Mechanical", P: "Plumbing", E: "Electrical",
+  FP: "Fire Protection", FA: "Fire Alarm",
+};
+
+function detectDiscipline(filename) {
+  const base = filename.replace(/\.pdf$/i, "").trim();
+  if (/^(00|Cover)/i.test(base)) return { prefix: "G", order: 0 };
+  // FA and FP before F; ID before I — order matters in the alternation
+  const m = base.match(/^(FA|FP|ID|G|D|C|L|S|A|M|P|E)(\d|\.|-|\s|$)/i);
+  if (m) {
+    const prefix = m[1].toUpperCase();
+    const order = DISCIPLINE_ORDER.indexOf(prefix);
+    return { prefix, order: order >= 0 ? order : DISCIPLINE_ORDER.length };
+  }
+  return { prefix: "", order: DISCIPLINE_ORDER.length };
+}
+
+function getSheetNum(filename) {
+  const base = filename.replace(/\.pdf$/i, "").trim();
+  const m = base.match(/^[A-Z]{1,2}(\d+(?:[.\-]\d+)?)/i);
+  return m ? parseFloat(m[1].replace("-", ".")) : 9999;
+}
+
+function sortFilesByDiscipline(files) {
+  return [...files].sort((a, b) => {
+    const da = detectDiscipline(a.name);
+    const db = detectDiscipline(b.name);
+    if (da.order !== db.order) return da.order - db.order;
+    return getSheetNum(a.name) - getSheetNum(b.name);
+  });
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 const OCR_CHAR_THRESHOLD = 50;
+const MAX_FILE_SIZE  = 500 * 1024 * 1024;        // 500 MB per file
+const MAX_TOTAL_SIZE = 2 * 1024 * 1024 * 1024;   // 2 GB combined
+const MAX_FILES      = 500;
 
 // appState: 'idle' | 'loading' | 'preview' | 'workspace'
 
@@ -62,26 +104,33 @@ export default function App() {
   const [feedbackDone, setFeedbackDone] = useState(false);
   const [onboardDone,  setOnboardDone]  = useState(false);
 
+  // ── Multi-file state ────────────────────────────────────────────────────────
+  // multiModal: 'closed' | 'choosing' | 'sorting' | 'combining'
+  const [multiModal,    setMultiModal]    = useState("closed");
+  const [pendingFiles,  setPendingFiles]  = useState([]);   // raw File[] from drop
+  const [combineFiles,  setCombineFiles]  = useState([]);   // ordered File[] for combine modal
+  const [combineName,   setCombineName]   = useState("Combined Documents.pdf");
+  const [combineProgress, setCombineProgress] = useState({ current: 0, total: 0, filename: "" });
+  const [combineErrors, setCombineErrors] = useState([]);   // filenames that failed
+  const [sameProject,   setSameProject]   = useState(false);
+  // Passed into Workspace so extra tabs are auto-loaded after primary mounts
+  const [pendingTabFiles,          setPendingTabFiles]          = useState([]);
+  const [extraFilesAsSameProject,  setExtraFilesAsSameProject]  = useState(false);
+
   const inputRef        = useRef(null);
   const ocrAbortRef     = useRef(null);
   const feedbackDoneRef = useRef(false);
   const leaveTimerRef   = useRef(null);
+  const dragIndexRef    = useRef(null);
 
-  // Keep ref in sync so the event listener always sees fresh value
   useEffect(() => { feedbackDoneRef.current = feedbackDone; }, [feedbackDone]);
 
-  // beforeunload approach: browser shows native "Leave site?" dialog;
-  // if user clicks Stay the page remains active and our setTimeout fires
-  // to show the custom modal. If they click Leave, pagehide fires first
-  // and we clear the timer so the modal never appears.
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (feedbackDoneRef.current) return;
       e.preventDefault();
-      e.returnValue = ""; // required for Chrome to show the native dialog
-      leaveTimerRef.current = setTimeout(() => {
-        setShowFeedback(true);
-      }, 200);
+      e.returnValue = "";
+      leaveTimerRef.current = setTimeout(() => { setShowFeedback(true); }, 200);
     };
     const handlePageHide = () => {
       if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
@@ -102,6 +151,7 @@ export default function App() {
     setPageTitles([]); setPageSheets([]);
     setError(""); setUploadProgress(0); setUploadEta(null); setUploadDone(false);
     setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
+    setPendingTabFiles([]); setExtraFilesAsSameProject(false);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -118,7 +168,7 @@ export default function App() {
     formData.append("file", selected);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/pdf-api/upload");
-    xhr.timeout = 300_000; // 5-minute hard cap
+    xhr.timeout = 300_000;
     const startTime = Date.now();
 
     xhr.upload.addEventListener("progress", (event) => {
@@ -144,7 +194,6 @@ export default function App() {
         }
         const data = JSON.parse(xhr.responseText);
 
-        // ── Phase 1: open workspace immediately with basic metadata ──────────
         setMeta({ filename: data.filename, size: data.size, pages: data.pages, info: data.info });
         setPageTexts(Array(data.pages).fill(""));
         setPageTitles(Array(data.pages).fill(""));
@@ -152,7 +201,6 @@ export default function App() {
         setExtractedText("");
         setAppState("workspace");
 
-        // ── Phase 2: extract text client-side using pdfjs (already loaded) ──
         const extractCtrl = new AbortController();
         ocrAbortRef.current = extractCtrl;
         let pageTexts = [];
@@ -169,7 +217,6 @@ export default function App() {
           return;
         }
 
-        // ── Phase 3: OCR fallback for scanned PDFs ───────────────────────────
         const avgChars = pageTexts.length > 0
           ? pageTexts.reduce((s, t) => s + (t || "").length, 0) / pageTexts.length
           : 0;
@@ -210,22 +257,135 @@ export default function App() {
     xhr.send(formData);
   }, []);
 
-  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB
-  const SIZE_ERROR = "This file exceeds the 500MB testing limit. Please contact us at info@footprintnavigator.com for large file support.";
+  // ── Multi-file validation & routing ──────────────────────────────────────────
+  const handleFilesSelected = useCallback((rawFiles) => {
+    setError("");
+    const arr = Array.from(rawFiles).filter(
+      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf"),
+    );
+    if (arr.length === 0) { setError("Please select PDF files"); return; }
+    if (arr.length > MAX_FILES) { setError(`Maximum ${MAX_FILES} files at once`); return; }
 
+    const tooLarge = arr.find((f) => f.size > MAX_FILE_SIZE);
+    if (tooLarge) {
+      setError(`"${tooLarge.name}" exceeds the 500MB limit.`);
+      return;
+    }
+    const totalSize = arr.reduce((s, f) => s + f.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE) {
+      setError("Total file size exceeds 2GB limit. Please reduce the number of files and try again.");
+      return;
+    }
+
+    if (arr.length === 1) {
+      uploadFile(arr[0]);
+      return;
+    }
+
+    setPendingFiles(arr);
+    setSameProject(false);
+    setMultiModal("choosing");
+  }, [uploadFile]);
+
+  // ── Combine flow handlers ─────────────────────────────────────────────────────
+  const handleCombineStart = useCallback(() => {
+    const sorted = sortFilesByDiscipline(pendingFiles);
+    setCombineFiles(sorted);
+    setCombineName("Combined Documents.pdf");
+    setCombineErrors([]);
+    setCombineProgress({ current: 0, total: sorted.length, filename: "" });
+    setMultiModal("sorting");
+  }, [pendingFiles]);
+
+  const handleOpenAsTabs = useCallback(() => {
+    setMultiModal("closed");
+    const [first, ...rest] = pendingFiles;
+    setPendingTabFiles(rest);
+    setExtraFilesAsSameProject(sameProject);
+    uploadFile(first);
+  }, [pendingFiles, sameProject, uploadFile]);
+
+  const handleCombineConfirm = useCallback(async () => {
+    if (combineFiles.length === 0) return;
+    setMultiModal("combining");
+    setCombineErrors([]);
+    setCombineProgress({ current: 0, total: combineFiles.length, filename: "" });
+
+    const { PDFDocument } = await import("pdf-lib");
+    const combined = await PDFDocument.create();
+    const errors = [];
+
+    for (let i = 0; i < combineFiles.length; i++) {
+      const f = combineFiles[i];
+      setCombineProgress({ current: i + 1, total: combineFiles.length, filename: f.name });
+      try {
+        const bytes = await f.arrayBuffer();
+        const src = await PDFDocument.load(bytes, { ignoreEncryption: true });
+        const indices = src.getPageIndices();
+        const copied = await combined.copyPages(src, indices);
+        copied.forEach((p) => combined.addPage(p));
+      } catch (err) {
+        console.error(`[combine] failed for "${f.name}":`, err);
+        errors.push(f.name);
+      }
+    }
+
+    if (errors.length > 0) setCombineErrors(errors);
+
+    const combinedBytes = await combined.save();
+    const blob = new Blob([combinedBytes], { type: "application/pdf" });
+
+    // Trigger download BEFORE opening viewer so user definitely gets the file
+    const dlUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = dlUrl;
+    a.download = combineName || "Combined Documents.pdf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(dlUrl), 15_000);
+
+    // Open in viewer
+    const combinedFile = new File([combinedBytes], combineName || "Combined Documents.pdf", {
+      type: "application/pdf",
+    });
+    setMultiModal("closed");
+    uploadFile(combinedFile);
+  }, [combineFiles, combineName, uploadFile]);
+
+  // ── Drag-to-reorder for combine file list ─────────────────────────────────────
+  const handleDragStart = useCallback((index) => { dragIndexRef.current = index; }, []);
+  const handleDragOver  = useCallback((e, index) => {
+    e.preventDefault();
+    if (dragIndexRef.current === null || dragIndexRef.current === index) return;
+    setCombineFiles((prev) => {
+      const next = [...prev];
+      const [dragged] = next.splice(dragIndexRef.current, 1);
+      next.splice(index, 0, dragged);
+      dragIndexRef.current = index;
+      return next;
+    });
+  }, []);
+  const handleDragEnd   = useCallback(() => { dragIndexRef.current = null; }, []);
+
+  // ── Original single-file handlers (unchanged path) ────────────────────────────
   const onFileChange = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.size > MAX_FILE_SIZE) { setError(SIZE_ERROR); return; }
-    uploadFile(f);
+    const files = e.target.files;
+    if (!files?.length) return;
+    if (inputRef.current) inputRef.current.value = "";
+    handleFilesSelected(files);
   };
+
   const onDrop = (e) => {
     e.preventDefault();
-    const f = e.dataTransfer.files?.[0];
-    if (!f) return;
-    if (f.size > MAX_FILE_SIZE) { setError(SIZE_ERROR); return; }
-    if (f.type === "application/pdf") uploadFile(f);
-    else setError("Please drop a PDF document");
+    const files = e.dataTransfer.files;
+    if (!files?.length) return;
+    // Check all are PDFs
+    const nonPdf = Array.from(files).find(
+      (f) => f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf"),
+    );
+    if (nonPdf) { setError("Please drop PDF files only"); return; }
+    handleFilesSelected(files);
   };
 
   const handleFeedbackClose = () => {
@@ -233,10 +393,178 @@ export default function App() {
     setFeedbackDone(true);
   };
 
+  const isCombining = multiModal === "combining";
+
   return (
     <div className="app">
-      {/* ── Feedback modal (triggered by tab close / beforeunload) ── */}
       {showFeedback && <FeedbackModal onClose={handleFeedbackClose} />}
+
+      {/* ── Multi-file choice modal ── */}
+      {multiModal === "choosing" && (
+        <div className="mf-overlay" onClick={(e) => { if (e.target === e.currentTarget) setMultiModal("closed"); }}>
+          <div className="mf-modal">
+            <div className="mf-modal-header">
+              <span className="mf-modal-title">{pendingFiles.length} PDF files selected</span>
+              <button className="mf-modal-close" onClick={() => setMultiModal("closed")}>×</button>
+            </div>
+            <div className="mf-modal-body">
+              <p className="mf-modal-desc">How would you like to open these files?</p>
+              <div className="mf-choice-row">
+                <button className="mf-choice-btn" onClick={handleCombineStart}>
+                  <span className="mf-choice-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#007BFF" strokeWidth="1.8" strokeLinecap="round"/>
+                      <path d="M14 2v6h6M8 13h8M8 17h5" stroke="#007BFF" strokeWidth="1.8" strokeLinecap="round"/>
+                    </svg>
+                  </span>
+                  <span className="mf-choice-label">Combine into one PDF</span>
+                  <span className="mf-choice-sub">Merge all files into a single PDF, auto-sorted by construction discipline. Download a copy automatically.</span>
+                </button>
+                <button className="mf-choice-btn" onClick={handleOpenAsTabs}>
+                  <span className="mf-choice-icon">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+                      <rect x="2" y="7" width="20" height="15" rx="2" stroke="#007BFF" strokeWidth="1.8"/>
+                      <path d="M2 11h20M7 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" stroke="#007BFF" strokeWidth="1.8" strokeLinecap="round"/>
+                    </svg>
+                  </span>
+                  <span className="mf-choice-label">Open as separate tabs</span>
+                  <span className="mf-choice-sub">Each file opens in its own tab. Switch between them instantly. Navigator can search all tabs together.</span>
+                </button>
+              </div>
+              <label className="mf-same-project">
+                <input
+                  type="checkbox"
+                  checked={sameProject}
+                  onChange={(e) => setSameProject(e.target.checked)}
+                />
+                <span>Associate all files into the same project (Navigator searches all tabs together)</span>
+              </label>
+              <p className="mf-modal-size-info">
+                {pendingFiles.length} files · {formatBytes(pendingFiles.reduce((s, f) => s + f.size, 0))} total
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Combine / sorting modal ── */}
+      {(multiModal === "sorting" || isCombining) && (
+        <div className="mf-overlay">
+          <div className="mf-modal mf-modal--wide">
+            <div className="mf-modal-header">
+              <span className="mf-modal-title">
+                {isCombining
+                  ? `Combining ${combineProgress.current} of ${combineProgress.total} files…`
+                  : `Combine ${combineFiles.length} file${combineFiles.length !== 1 ? "s" : ""} into one PDF`}
+              </span>
+              {!isCombining && (
+                <button className="mf-modal-close" onClick={() => setMultiModal("choosing")}>×</button>
+              )}
+            </div>
+
+            <div className="mf-modal-body">
+              {isCombining ? (
+                <div className="mf-progress-wrap">
+                  <p className="mf-progress-label">
+                    Combining {combineProgress.current} of {combineProgress.total} files…
+                    {combineProgress.filename && (
+                      <span className="mf-progress-file"> {combineProgress.filename}</span>
+                    )}
+                  </p>
+                  <div className="mf-progress-bar">
+                    <div
+                      className="mf-progress-fill"
+                      style={{
+                        width: combineProgress.total > 0
+                          ? `${(combineProgress.current / combineProgress.total) * 100}%`
+                          : "0%",
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="mf-modal-desc">
+                    Files sorted by construction discipline. Drag ⠿ to reorder, × to remove.
+                  </p>
+                  <div className="mf-file-list">
+                    {combineFiles.map((f, i) => {
+                      const { prefix } = detectDiscipline(f.name);
+                      const disciplineName = DISCIPLINE_NAMES[prefix] || "";
+                      return (
+                        <div
+                          key={f.name + i}
+                          className="mf-file-row"
+                          draggable
+                          onDragStart={() => handleDragStart(i)}
+                          onDragOver={(e) => handleDragOver(e, i)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <span className="mf-drag-handle" title="Drag to reorder">⠿</span>
+                          <span
+                            className="mf-discipline-badge"
+                            title={disciplineName || "Unknown discipline"}
+                          >
+                            {prefix || "?"}
+                          </span>
+                          <span className="mf-file-name" title={f.name}>{f.name}</span>
+                          <span className="mf-file-size">{formatBytes(f.size)}</span>
+                          <button
+                            className="mf-file-remove"
+                            onClick={() => setCombineFiles((prev) => prev.filter((_, j) => j !== i))}
+                            title="Remove from combine"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {combineFiles.length === 0 && (
+                      <p style={{ color: "#555", textAlign: "center", padding: "16px", fontSize: 13 }}>
+                        All files removed. Add more or go back.
+                      </p>
+                    )}
+                  </div>
+                  <div className="mf-combine-footer">
+                    <div className="mf-combine-meta">
+                      {combineFiles.length} file{combineFiles.length !== 1 ? "s" : ""} ·{" "}
+                      {formatBytes(combineFiles.reduce((s, f) => s + f.size, 0))} combined
+                    </div>
+                    <div className="mf-combine-name-row">
+                      <label className="mf-combine-name-label">Combined PDF name</label>
+                      <input
+                        className="mf-name-input"
+                        value={combineName}
+                        onChange={(e) => setCombineName(e.target.value)}
+                        placeholder="Combined Documents.pdf"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {combineErrors.length > 0 && (
+                <div className="mf-errors">
+                  ⚠ Failed to load: {combineErrors.join(", ")} — skipped.
+                </div>
+              )}
+            </div>
+
+            {!isCombining && (
+              <div className="mf-modal-footer">
+                <button className="mf-btn-ghost" onClick={() => setMultiModal("choosing")}>← Back</button>
+                <button
+                  className="mf-btn-primary"
+                  onClick={handleCombineConfirm}
+                  disabled={combineFiles.length === 0}
+                >
+                  Combine and Open
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Drop zone ── */}
       {appState === "idle" && (
@@ -257,7 +585,7 @@ export default function App() {
               onDragOver={(e) => e.preventDefault()}
               onClick={() => inputRef.current?.click()}
             >
-              <input ref={inputRef} type="file" accept=".pdf,application/pdf" onChange={onFileChange} hidden />
+              <input ref={inputRef} type="file" accept=".pdf,application/pdf" multiple onChange={onFileChange} hidden />
               <div className="dropzone-inner">
                 <div className="dropzone-icon">
                   <svg viewBox="0 0 24 24" width="48" height="48" fill="none">
@@ -265,10 +593,12 @@ export default function App() {
                     <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="#007BFF" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </div>
-                <h2>Drop a document to begin</h2>
-                <p>or click to browse</p>
-                <p className="upload-hint">Accepts PDF files only · 500MB limit during testing</p>
-                <button type="button" className="btn primary">Choose Document</button>
+                <h2>Drop documents to begin</h2>
+                <p>or click to browse — single or multiple PDFs</p>
+                <p className="upload-hint">
+                  Up to 500 files · 500MB per file · 2GB total
+                </p>
+                <button type="button" className="btn primary">Choose Documents</button>
               </div>
               {error && <p className="error">{error}</p>}
             </section>
@@ -337,6 +667,8 @@ export default function App() {
             onNewFile={reset}
             onboardDone={onboardDone}
             onOnboardDone={() => setOnboardDone(true)}
+            pendingTabFiles={pendingTabFiles}
+            extraFilesAsSameProject={extraFilesAsSameProject}
           />
         </WorkspaceErrorBoundary>
       )}
@@ -378,7 +710,7 @@ function extractPageMetaClient(items, pageW, pageH) {
   return { title, sheet };
 }
 
-// ── Client-side text extraction (pdfjs already loaded for viewing) ────────────
+// ── Client-side text extraction ───────────────────────────────────────────────
 
 async function runTextExtraction(file, numPages, signal) {
   const buffer = await file.arrayBuffer();
@@ -438,4 +770,12 @@ function formatEta(seconds) {
   if (seconds < 1) return "less than 1s";
   if (seconds < 60) return `${Math.ceil(seconds)}s`;
   return `${Math.floor(seconds / 60)}m ${Math.ceil(seconds % 60)}s`;
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1_048_576) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1_073_741_824) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+  return `${(bytes / 1_073_741_824).toFixed(2)} GB`;
 }

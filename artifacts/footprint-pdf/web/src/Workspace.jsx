@@ -613,7 +613,7 @@ const TOOL_BTNS = [
 
 // ── Workspace ────────────────────────────────────────────────────────────────
 
-export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone }) {
+export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject }) {
   // PDF
   const [pdfDoc,   setPdfDoc]   = useState(null);
   const [numPages, setNumPages] = useState(meta.pages || 0);
@@ -849,6 +849,30 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     }
     setPageNum(1);
   }, [activeDocId]); // eslint-disable-line
+
+  // ── Auto-load extra tabs passed from App (multi-file drop "separate tabs") ──
+  const tabsAutoLoadedRef = useRef(false);
+  useEffect(() => {
+    if (tabsAutoLoadedRef.current) return;
+    if (!pdfDoc || !pendingTabFiles?.length) return;
+    tabsAutoLoadedRef.current = true;
+
+    (async () => {
+      let projectId = null;
+      if (extraFilesAsSameProject) {
+        const newId = `proj-${Date.now()}`;
+        const projName = meta.filename.replace(/\.pdf$/i, "") + " Project";
+        setProjects((prev) => [...prev, { id: newId, name: projName }]);
+        setPrimaryProjectId(newId);
+        // brief pause so state settles before loadExtraDoc reads it
+        await new Promise((r) => setTimeout(r, 80));
+        projectId = newId;
+      }
+      for (const f of pendingTabFiles) {
+        await loadExtraDoc(f, projectId);
+      }
+    })();
+  }, [pdfDoc, pendingTabFiles]); // eslint-disable-line
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
