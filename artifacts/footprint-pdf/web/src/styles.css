@@ -1506,8 +1506,7 @@ button { font-family: inherit; }
   bottom: 70px;
   right: 16px;
   z-index: 500;
-  background: #000;
-  border: 1.5px solid #007BFF;
+  background: #007BFF;
   border-radius: 10px;
   padding: 10px 14px 10px;
   display: flex;
@@ -1516,7 +1515,7 @@ button { font-family: inherit; }
   gap: 4px;
   min-width: 86px;
   font-family: 'Montserrat', sans-serif;
-  box-shadow: 0 4px 24px rgba(0,123,255,0.28);
+  box-shadow: 0 4px 24px rgba(0,123,255,0.45);
   user-select: none;
 }
 .ws-count-label {
@@ -1524,7 +1523,7 @@ button { font-family: inherit; }
   font-weight: 700;
   letter-spacing: 1.8px;
   text-transform: uppercase;
-  color: #007BFF;
+  color: #fff;
   font-family: 'Montserrat', sans-serif;
 }
 .ws-count-number {
@@ -1545,19 +1544,19 @@ button { font-family: inherit; }
 .ws-count-export {
   font-size: 9px;
   font-weight: 700;
-  color: #ccc;
-  background: #1a1a1a;
-  border: 1px solid #333;
+  color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.35);
   border-radius: 4px;
   padding: 3px 8px;
   cursor: pointer;
   font-family: 'Montserrat', sans-serif;
   letter-spacing: .4px;
   text-transform: uppercase;
-  transition: border-color .15s, color .15s;
+  transition: background .15s, border-color .15s;
 }
-.ws-count-reset:hover  { border-color: #e53935; color: #e53935; }
-.ws-count-export:hover { border-color: #007BFF; color: #007BFF; }
+.ws-count-reset:hover  { background: rgba(229,57,53,0.55);  border-color: rgba(229,57,53,0.8); }
+.ws-count-export:hover { background: rgba(255,255,255,0.28); border-color: rgba(255,255,255,0.6); }
 
 
 /* ── Workspace Onboarding Tour ────────────────────────────── */

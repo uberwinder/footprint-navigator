@@ -406,10 +406,19 @@ function mDrawInProgress(ctx, pts, type, mousePos, calib) {
     ctx.globalAlpha = 1;
   }
 
-  // ── Cursor crosshair dot ─────────────────────────────────────────────────
+  // ── Cursor indicator ─────────────────────────────────────────────────────
   if (mousePos) {
-    ctx.save(); ctx.fillStyle = "#007BFF"; ctx.globalAlpha = 0.85;
-    ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 3, 0, Math.PI*2); ctx.fill();
+    ctx.save(); ctx.globalAlpha = 0.85;
+    if (type === "count") {
+      // Preview circle matching the placed marker size
+      ctx.fillStyle = "rgba(0,123,255,0.3)";
+      ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#007BFF"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 13, 0, Math.PI * 2); ctx.stroke();
+    } else {
+      ctx.fillStyle = "#007BFF";
+      ctx.beginPath(); ctx.arc(mousePos.x, mousePos.y, 3, 0, Math.PI*2); ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -2200,7 +2209,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     const tool = currentToolRef.current;
     const mp   = overrideMousePos !== undefined ? overrideMousePos : mousePosRef.current;
     if (MTOOLS.includes(tool)) {
-      mDrawInProgress(ctx, pts, tool, pts.length > 0 ? mp : null, calibSaved);
+      mDrawInProgress(ctx, pts, tool, (pts.length > 0 || tool === "count") ? mp : null, calibSaved);
     }
     mDrawSnapIndicator(ctx, snapResultRef.current);
   }, [measurements, calibSaved, pageNum]);
@@ -2260,6 +2269,25 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     }
     setMeasurements((ms) => [...ms, { id: Date.now(), page: pageNum, type: tool, points: [...pts] }]);
     setMeasurePoints([]);
+  }, [pageNum]);
+
+  const handleMeasureContextMenu = useCallback((e) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const RADIUS = 20;
+    let closestId = null;
+    let minDist = Infinity;
+    setMeasurements((ms) => {
+      for (const m of ms) {
+        if (m.type !== "count" || (m.page != null && m.page !== pageNum)) continue;
+        const p = m.points[0];
+        const d = Math.hypot(p.x - cx, p.y - cy);
+        if (d < minDist && d <= RADIUS) { minDist = d; closestId = m.id; }
+      }
+      return closestId != null ? ms.filter((m) => m.id !== closestId) : ms;
+    });
   }, [pageNum]);
 
   // ── Count tool helpers ─────────────────────────────────────────────────────
@@ -2612,6 +2640,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                       onClick={handleMeasureClick}
                       onDoubleClick={handleMeasureDblClick}
                       onMouseMove={handleMeasureMouseMove}
+                      onContextMenu={handleMeasureContextMenu}
                     />
                   )}
                 </div>
@@ -2642,6 +2671,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                           onClick={handleMeasureClick}
                           onDoubleClick={handleMeasureDblClick}
                           onMouseMove={handleMeasureMouseMove}
+                          onContextMenu={handleMeasureContextMenu}
                         />
                       )}
                     </div>
