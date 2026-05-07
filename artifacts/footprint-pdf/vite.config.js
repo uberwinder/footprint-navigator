@@ -5,14 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const rawPort = process.env.PORT;
-if (!rawPort) {
-  throw new Error("PORT environment variable is required.");
-}
-const port = Number(rawPort);
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+// PORT is only required at runtime (dev server / preview). During `vite build`
+// it is not used, so fall back to 3000 to avoid breaking the Render build step.
+const port = Number(process.env.PORT || 3000);
 
 const basePath = process.env.BASE_PATH || "/";
 
