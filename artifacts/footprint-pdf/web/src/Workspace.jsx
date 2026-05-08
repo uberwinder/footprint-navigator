@@ -622,7 +622,7 @@ const TOOL_BTNS = [
 
 // ── Workspace ────────────────────────────────────────────────────────────────
 
-export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject }) {
+export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject, pendingProjectName }) {
   // PDF
   const [pdfDoc,   setPdfDoc]   = useState(null);
   const [numPages, setNumPages] = useState(meta.pages || 0);
@@ -2117,7 +2117,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       let projectId = null;
       if (extraFilesAsSameProject) {
         const newId = `proj-${Date.now()}`;
-        const projName = meta.filename.replace(/\.pdf$/i, "") + " Project";
+        const projName = pendingProjectName || (meta.filename.replace(/\.pdf$/i, "") + " Project");
         setProjects((prev) => [...prev, { id: newId, name: projName }]);
         setPrimaryProjectId(newId);
         // brief pause so state settles before loadExtraDoc reads it

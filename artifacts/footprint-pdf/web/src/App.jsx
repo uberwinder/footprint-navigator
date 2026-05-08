@@ -116,6 +116,7 @@ export default function App() {
   // Passed into Workspace so extra tabs are auto-loaded after primary mounts
   const [pendingTabFiles,          setPendingTabFiles]          = useState([]);
   const [extraFilesAsSameProject,  setExtraFilesAsSameProject]  = useState(false);
+  const [pendingProjectName,       setPendingProjectName]       = useState(null);
 
   // ── Sample documents modal ───────────────────────────────────────────────────
   const [showSampleModal, setShowSampleModal] = useState(false);
@@ -357,20 +358,28 @@ export default function App() {
     uploadFile(combinedFile);
   }, [combineFiles, combineName, uploadFile]);
 
-  // ── Sample document loader ────────────────────────────────────────────────────
-  const loadSampleDoc = useCallback(async (url, filename) => {
-    setSampleLoading(filename);
+  // ── Sample project loader ─────────────────────────────────────────────────────
+  const SAMPLE_DRAWINGS_URL = "https://pub-2ad499c25d274381bf49e0399161212e.r2.dev/CSP_26-77_Wimbish_WLA_Gym_Addition___Renovations-Drawings.pdf";
+  const SAMPLE_SPECS_URL    = "https://pub-2ad499c25d274381bf49e0399161212e.r2.dev/CSP_26-77_Wimbish_WLA_Gym_Addition___Renovations_-Specifications.pdf";
+
+  const loadSampleProject = useCallback(async () => {
+    setSampleLoading("loading");
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const f = new File([blob], filename, { type: "application/pdf" });
+      const [drawingsBlob, specsBlob] = await Promise.all([
+        fetch(SAMPLE_DRAWINGS_URL).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); }),
+        fetch(SAMPLE_SPECS_URL).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); }),
+      ]);
+      const drawingsFile = new File([drawingsBlob], "Wimbish_Gym_Addition_Drawings.pdf", { type: "application/pdf" });
+      const specsFile    = new File([specsBlob],    "Wimbish_Gym_Addition_Specifications.pdf", { type: "application/pdf" });
       setShowSampleModal(false);
       setSampleLoading(null);
-      uploadFile(f);
+      setPendingTabFiles([specsFile]);
+      setExtraFilesAsSameProject(true);
+      setPendingProjectName("Sample");
+      uploadFile(drawingsFile);
     } catch {
       setSampleLoading(null);
-      setError("Could not load sample document. Please try again.");
+      setError("Could not load sample project. Please try again.");
     }
   }, [uploadFile]);
 
@@ -640,40 +649,29 @@ export default function App() {
                   )}
                 </div>
                 <div className="sample-modal-body">
-                  {[
-                    {
-                      label: "Construction Drawings",
-                      description: "Wimbish Gym Addition — Construction Drawings (151 MB)",
-                      url: "https://pub-2ad499c25d274381bf49e0399161212e.r2.dev/CSP_26-77_Wimbish_WLA_Gym_Addition___Renovations-Drawings.pdf",
-                      filename: "Wimbish_Gym_Addition_Drawings.pdf",
-                    },
-                    {
-                      label: "Project Specifications",
-                      description: "Wimbish Gym Addition — Project Specifications (16 MB)",
-                      url: "https://pub-2ad499c25d274381bf49e0399161212e.r2.dev/CSP_26-77_Wimbish_WLA_Gym_Addition___Renovations_-Specifications.pdf",
-                      filename: "Wimbish_Gym_Addition_Specifications.pdf",
-                    },
-                  ].map((doc) => (
-                    <div key={doc.label} className="sample-doc-card">
-                      <div className="sample-doc-info">
-                        <div className="sample-doc-label">{doc.label}</div>
-                        <div className="sample-doc-desc">{doc.description}</div>
+                  <div className="sample-doc-card sample-doc-card--single">
+                    <div className="sample-doc-info">
+                      <div className="sample-doc-label">Wimbish Gym Addition</div>
+                      <div className="sample-doc-desc">
+                        Load the Wimbish Gym Addition project — includes construction drawings (151 MB) and project specifications (16 MB)
                       </div>
-                      <button
-                        type="button"
-                        className="sample-doc-btn"
-                        disabled={!!sampleLoading}
-                        onClick={() => loadSampleDoc(doc.url, doc.filename)}
-                      >
-                        {sampleLoading === doc.filename ? "Fetching…" : "Load"}
-                      </button>
+                      <ul className="sample-doc-files">
+                        <li>Construction Drawings — 151 MB</li>
+                        <li>Project Specifications — 16 MB</li>
+                      </ul>
                     </div>
-                  ))}
+                    <button
+                      type="button"
+                      className="sample-doc-btn"
+                      disabled={!!sampleLoading}
+                      onClick={loadSampleProject}
+                    >
+                      {sampleLoading ? "Loading…" : "Load Sample Project"}
+                    </button>
+                  </div>
                   {sampleLoading && (
                     <p className="sample-fetch-hint">
-                      {sampleLoading.includes("Drawings")
-                        ? "Fetching the drawings set (151 MB) — this may take a moment…"
-                        : "Fetching the specifications — almost there…"}
+                      Loading sample project — fetching both documents simultaneously. The drawings set is 151 MB so this may take a moment…
                     </p>
                   )}
                 </div>
@@ -746,6 +744,7 @@ export default function App() {
             onOnboardDone={() => setOnboardDone(true)}
             pendingTabFiles={pendingTabFiles}
             extraFilesAsSameProject={extraFilesAsSameProject}
+            pendingProjectName={pendingProjectName}
           />
         </WorkspaceErrorBoundary>
       )}
