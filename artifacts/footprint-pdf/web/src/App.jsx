@@ -117,6 +117,10 @@ export default function App() {
   const [pendingTabFiles,          setPendingTabFiles]          = useState([]);
   const [extraFilesAsSameProject,  setExtraFilesAsSameProject]  = useState(false);
 
+  // ── Sample documents modal ───────────────────────────────────────────────────
+  const [showSampleModal, setShowSampleModal] = useState(false);
+  const [sampleLoading,   setSampleLoading]   = useState(null); // filename currently being fetched
+
   const inputRef        = useRef(null);
   const ocrAbortRef     = useRef(null);
   const feedbackDoneRef = useRef(false);
@@ -352,6 +356,23 @@ export default function App() {
     setMultiModal("closed");
     uploadFile(combinedFile);
   }, [combineFiles, combineName, uploadFile]);
+
+  // ── Sample document loader ────────────────────────────────────────────────────
+  const loadSampleDoc = useCallback(async (url, filename) => {
+    setSampleLoading(filename);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const f = new File([blob], filename, { type: "application/pdf" });
+      setShowSampleModal(false);
+      setSampleLoading(null);
+      uploadFile(f);
+    } catch {
+      setSampleLoading(null);
+      setError("Could not load sample document. Please try again.");
+    }
+  }, [uploadFile]);
 
   // ── Drag-to-reorder for combine file list ─────────────────────────────────────
   const handleDragStart = useCallback((index) => { dragIndexRef.current = index; }, []);
@@ -602,7 +623,63 @@ export default function App() {
               </div>
               {error && <p className="error">{error}</p>}
             </section>
+            <div className="sample-link-row">
+              <button type="button" className="sample-link" onClick={() => setShowSampleModal(true)}>
+                Don't have a PDF handy? Try our sample construction documents →
+              </button>
+            </div>
           </main>
+
+          {showSampleModal && (
+            <div className="sample-modal-overlay" onClick={() => { if (!sampleLoading) setShowSampleModal(false); }}>
+              <div className="sample-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="sample-modal-header">
+                  <span className="sample-modal-title">Sample Documents</span>
+                  {!sampleLoading && (
+                    <button className="sample-modal-close" onClick={() => setShowSampleModal(false)}>✕</button>
+                  )}
+                </div>
+                <div className="sample-modal-body">
+                  {[
+                    {
+                      label: "Construction Drawings",
+                      description: "Wimbish Gym Addition — Construction Drawings (151 MB)",
+                      url: "https://pub-2ad499c25d274381bf49e0399161212e.r2.dev/CSP_26-77_Wimbish_WLA_Gym_Addition___Renovations-Drawings.pdf",
+                      filename: "Wimbish_Gym_Addition_Drawings.pdf",
+                    },
+                    {
+                      label: "Project Specifications",
+                      description: "Wimbish Gym Addition — Project Specifications (16 MB)",
+                      url: "https://pub-2ad499c25d274381bf49e0399161212e.r2.dev/CSP_26-77_Wimbish_WLA_Gym_Addition___Renovations_-Specifications.pdf",
+                      filename: "Wimbish_Gym_Addition_Specifications.pdf",
+                    },
+                  ].map((doc) => (
+                    <div key={doc.label} className="sample-doc-card">
+                      <div className="sample-doc-info">
+                        <div className="sample-doc-label">{doc.label}</div>
+                        <div className="sample-doc-desc">{doc.description}</div>
+                      </div>
+                      <button
+                        type="button"
+                        className="sample-doc-btn"
+                        disabled={!!sampleLoading}
+                        onClick={() => loadSampleDoc(doc.url, doc.filename)}
+                      >
+                        {sampleLoading === doc.filename ? "Fetching…" : "Load"}
+                      </button>
+                    </div>
+                  ))}
+                  {sampleLoading && (
+                    <p className="sample-fetch-hint">
+                      {sampleLoading.includes("Drawings")
+                        ? "Fetching the drawings set (151 MB) — this may take a moment…"
+                        : "Fetching the specifications — almost there…"}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 
