@@ -41,11 +41,11 @@ const FEATURES = [
     title: "What Is In Development",
     intro:
       "Footprint Navigator launched as a web app and a lot more is being built right now. Here is what the team is actively working on:\n\n" +
-      "- Desktop app — offline use and local file access without uploading\n" +
-      "- Project management integrations — take action in your PM tools and email without leaving the app\n" +
-      "- Persistent project storage — save and reopen projects without re-uploading\n" +
-      "- Team pricing — $29 per user per month\n" +
-      "- Expanded industries — legal documents, insurance files, technical manuals, and any large structured PDF set\n\n" +
+      "- Desktop App — offline use and local file access\n" +
+      "- External Integrations — take action without leaving the app\n" +
+      "- Persistent Storage — save and reopen without re-uploading\n" +
+      "- Team Pricing/Features — contact us for info\n" +
+      "- Expanded Industries — legal, insurance, engineering, etc.\n\n" +
       "All of the above are currently in development. Launch date is July 1, 2026. Pricing starts at $19 per month for Solo users. Questions? Reach us at info@footprintnavigator.com.",
   },
   {
