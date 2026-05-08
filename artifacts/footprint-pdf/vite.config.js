@@ -22,10 +22,8 @@ export default defineConfig({
     allowedHosts: true,
     hmr: { clientPort: 443 },
     proxy: {
-      "/pdf-api": {
-        target: "http://localhost:4001",
-        changeOrigin: true,
-      },
+      "/pdf-api": { target: "http://localhost:4001", changeOrigin: true },
+      "/ping":     { target: "http://localhost:4001", changeOrigin: true },
     },
   },
   preview: {
