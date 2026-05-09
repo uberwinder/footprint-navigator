@@ -995,6 +995,13 @@ button { font-family: inherit; }
 .ws-chat-confidence-label--low    { color: #dc2626; font-weight: 600; }
 
 .ws-chat-text     { font-size: 13px; color: #f0f0f0; line-height: 1.5; }
+.ws-chat-text--md { display: flex; flex-direction: column; gap: 3px; }
+.ws-chat-md-line  { display: block; font-size: 13px; color: #f0f0f0; line-height: 1.55; }
+.ws-chat-md-h     { font-size: 13px; font-weight: 700; color: #f4f6fa; margin: 4px 0 1px; }
+.ws-chat-md-list  { margin: 2px 0 2px 18px; padding: 0; font-size: 13px; color: #f0f0f0; line-height: 1.6; list-style: disc; }
+.ws-chat-md-ol    { list-style: decimal; }
+.ws-chat-md-list li { margin: 0; padding: 0; }
+.ws-chat-md-list strong { color: #f4f6fa; }
 .ws-chat-thinking { font-size: 13px; color: var(--text-dim); font-style: italic; }
 
 .ws-chat-results { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }

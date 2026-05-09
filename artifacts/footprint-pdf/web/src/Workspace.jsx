@@ -620,6 +620,59 @@ const TOOL_BTNS = [
   { id: "zoom",   icon: "⌕",  tooltip: "Zoom (Z)" },
 ];
 
+// ── Markdown renderer ─────────────────────────────────────────────────────────
+
+function parseInline(str) {
+  const tokens = str.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return tokens.map((tok, i) => {
+    if (tok.startsWith("**") && tok.endsWith("**")) return <strong key={i}>{tok.slice(2, -2)}</strong>;
+    if (tok.startsWith("*") && tok.endsWith("*"))   return <em key={i}>{tok.slice(1, -1)}</em>;
+    return tok || null;
+  });
+}
+
+function renderMarkdown(text) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  const out = [];
+  let ulItems = null;
+  let olItems = null;
+  let key = 0;
+
+  const flushUl = () => {
+    if (ulItems) { out.push(<ul key={key++} className="ws-chat-md-list">{ulItems}</ul>); ulItems = null; }
+  };
+  const flushOl = () => {
+    if (olItems) { out.push(<ol key={key++} className="ws-chat-md-list ws-chat-md-ol">{olItems}</ol>); olItems = null; }
+  };
+  const flush = () => { flushUl(); flushOl(); };
+
+  for (const line of lines) {
+    if (/^##\s/.test(line)) {
+      flush();
+      out.push(<p key={key++} className="ws-chat-md-h">{parseInline(line.replace(/^##\s/, ""))}</p>);
+    } else if (/^#\s/.test(line)) {
+      flush();
+      out.push(<p key={key++} className="ws-chat-md-h">{parseInline(line.replace(/^#\s/, ""))}</p>);
+    } else if (/^[-*]\s/.test(line)) {
+      flushOl();
+      if (!ulItems) ulItems = [];
+      ulItems.push(<li key={key++}>{parseInline(line.slice(2))}</li>);
+    } else if (/^\d+\.\s/.test(line)) {
+      flushUl();
+      if (!olItems) olItems = [];
+      olItems.push(<li key={key++}>{parseInline(line.replace(/^\d+\.\s/, ""))}</li>);
+    } else if (line.trim() === "") {
+      flush();
+    } else {
+      flush();
+      out.push(<span key={key++} className="ws-chat-md-line">{parseInline(line)}</span>);
+    }
+  }
+  flush();
+  return out;
+}
+
 // ── Workspace ────────────────────────────────────────────────────────────────
 
 export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject, pendingProjectName }) {
@@ -650,7 +703,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
   // Chat
   const [chatOpen,     setChatOpen]     = useState(false);
-  const [chatHeight,   setChatHeight]   = useState(300);
+  const [chatHeight,   setChatHeight]   = useState(400);
   const [chatInput,    setChatInput]    = useState("");
   const [chatMessages, setChatMessages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`chat:${meta.filename}`) || "[]"); }
@@ -3091,7 +3144,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                       <span className="ws-chat-thinking">{thinkingText}</span>
                     ) : (
                       <>
-                        <span className="ws-chat-text">{msg.text}</span>
+                        <span className="ws-chat-text ws-chat-text--md">{renderMarkdown(msg.text)}</span>
                         {msg.aiAnswer && msg.model && (
                           <span className="ws-chat-model-line">
                             {MODEL_DISPLAY[msg.model]?.name || msg.model} · {msg.complexity} · {msg.latencyMs}ms
