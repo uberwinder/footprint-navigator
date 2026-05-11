@@ -1,0 +1,76 @@
+Four fixes needed:
+
+--- FIX 1: SPECS BOOKMARKS — ONE PER SECTION, NOT PER PAGE ---
+
+The bookmarks panel is creating a bookmark for every 
+page that mentions a CSI section number. It should 
+create only ONE bookmark per unique section, pointing 
+to the FIRST page where that section appears.
+
+Fix buildSpecBookmarks:
+1. Scan all pages for CSI section patterns
+2. For each unique section number (e.g. 09 65 00), 
+   record ONLY the first page number where it appears
+3. Deduplicate — if 09 65 00 appears on pages 143, 
+   144, 145, the bookmark points to page 143 only
+4. Skip matches that are likely table of contents, 
+   title blocks, or cross-references by checking 
+   context:
+   - If the same page contains 5+ different section 
+     numbers, it is probably a TOC — skip it entirely 
+     for first-occurrence tracking
+   - The true first page of a section typically has 
+     that section number appear 1-3 times on the page
+5. Group deduplicated sections by division as before
+
+--- FIX 2: DELETE BOOKMARK BUTTON ---
+
+Add a delete (×) button to each bookmark item in 
+both drawings and specs modes.
+
+- Show the × on hover only (not always visible — 
+  keeps the panel clean)
+- Clicking × removes that bookmark from the list 
+  permanently (state only, no persistence needed)
+- Do not show × on group headers — only on 
+  individual items within a group
+- Style: small, gray, same pattern as other 
+  remove buttons in the app
+
+--- FIX 3: CONTINUOUS SCROLL VIEW ---
+
+Add continuous scroll mode to the PDF viewer so 
+users can scroll through all pages vertically 
+instead of navigating one page at a time.
+
+This is a significant viewer change — show the 
+plan first before implementing:
+
+1. How will you render all pages stacked vertically?
+   (Virtual scroll vs render all at once)
+2. How will the current page indicator update as 
+   the user scrolls?
+3. How will jumpToPage still work in continuous mode?
+4. Will thumbnail clicks still scroll to the correct 
+   page?
+5. What is the performance approach for large PDFs 
+   (100+ pages)?
+
+Answer these 5 questions before writing any code 
+for Fix 3. Fixes 1, 2, and 4 can be built immediately.
+
+--- FIX 4: LOCK TOP TOOLBAR ---
+
+The top toolbar is scrolling out of view. Fix it 
+so it stays visible at all times.
+
+Find the top toolbar container and add:
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+If it is already position: fixed or sticky and 
+still scrolling away, find why and fix it.
+
+Push fixes 1, 2, and 4 to GitHub now.
+Wait for approval on Fix 3 before building it.

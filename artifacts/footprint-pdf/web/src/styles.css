@@ -463,7 +463,7 @@ button { font-family: inherit; }
   background: var(--bar);
   border-bottom: 1px solid var(--border);
   height: 28px; flex-shrink: 0;
-  position: relative; z-index: 200;
+  position: sticky; top: 0; z-index: 200;
 }
 
 .ws-menu-wrap { position: relative; }
@@ -590,6 +590,7 @@ button { font-family: inherit; }
   padding: 0 8px; height: 30px; flex-shrink: 0;
   overflow-x: auto; overflow-y: hidden;
   scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent;
+  position: sticky; top: 28px; z-index: 199;
 }
 .ws-tabbar::-webkit-scrollbar { height: 3px; }
 .ws-tabbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 2px; }
@@ -1449,6 +1450,7 @@ button { font-family: inherit; }
   transition: background .1s;
 }
 .ws-bm-item:hover { background: var(--panel-elev); }
+.ws-bm-item:hover .ws-bm-delete { opacity: 1; }
 .ws-bm-item-label {
   flex: 1; font-size: 11px; color: #a0c4ff;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1463,6 +1465,14 @@ button { font-family: inherit; }
   background: #111; border: 1px solid var(--accent);
   color: #fff; border-radius: 3px; padding: 1px 4px; outline: none;
 }
+.ws-bm-delete {
+  flex-shrink: 0; opacity: 0;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-size: 13px; line-height: 1;
+  padding: 1px 3px; border-radius: 3px;
+  transition: opacity .12s, color .12s, background .12s;
+}
+.ws-bm-delete:hover { color: var(--danger); background: rgba(255,90,95,.12); }
 
 /* ── Search Panel ──────────────────────────────────────────────── */
 .ws-search-panel { padding: 10px; display: flex; flex-direction: column; gap: 8px; }

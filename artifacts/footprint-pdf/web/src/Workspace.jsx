@@ -4445,6 +4445,16 @@ function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, docType }
     setEditing(null);
   };
 
+  const deleteItem = (groupKey, itemIdx) => {
+    setGroups((prev) =>
+      prev
+        .map((g) =>
+          g.key !== groupKey ? g : { ...g, items: g.items.filter((_, i) => i !== itemIdx) }
+        )
+        .filter((g) => g.items.length > 0)
+    );
+  };
+
   const totalItems = groups.reduce((s, g) => s + g.items.length, 0);
 
   return (
@@ -4514,6 +4524,11 @@ function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, docType }
                         </span>
                       )}
                       <span className="ws-bm-item-page">p.{item.page}</span>
+                      <button
+                        className="ws-bm-delete"
+                        title="Remove bookmark"
+                        onClick={(e) => { e.stopPropagation(); deleteItem(group.key, idx); }}
+                      >×</button>
                     </div>
                   );
                 })}
@@ -4866,35 +4881,53 @@ function buildDrawingsBookmarks(pageSheets) {
 }
 
 function buildSpecBookmarks(pageTexts, numPages) {
-  // Match both spaced "09 65 00" and compact "096500" CSI section numbers
-  const SECTION_RE = /SECTION\s+(\d{2}[\s-]?\d{2}[\s-]?\d{2})\b[^\n]*/i;
-  const DIV_RE     = /DIVISION\s+(\d{2})\b/i;
-  const divMap = {};
+  const SECTION_RE_G = /SECTION\s+(\d{2}[\s-]?\d{2}[\s-]?\d{2})\b[^\n]*/gi;
+  const DIV_RE       = /DIVISION\s+(\d{2})\b/i;
+  const normSec      = (s) => s.replace(/[-\s]+/g, " ").trim(); // "09-65-00" → "09 65 00"
+
+  // Pass 1: scan all pages, record FIRST occurrence of each section (skip TOC pages)
+  const firstPage = {}; // secNum → { page, divNum, label }
   (pageTexts || []).forEach((text, i) => {
     if (!text) return;
     const page = i + 1;
-    const sm = text.match(SECTION_RE);
-    if (sm) {
-      const secNum  = sm[1].replace(/\s+/g, " ").trim();
-      const divNum  = secNum.slice(0, 2);
-      const titleM  = sm[0].match(/\d{2}\s+\d{2}\s+\d{2}\s*[-–—]?\s*(.+)/i);
-      const title   = titleM ? titleM[1].trim().slice(0, 60) : "";
-      const label   = title ? `${secNum} — ${title}` : secNum;
-      if (!divMap[divNum]) divMap[divNum] = [];
-      if (!divMap[divNum].some((x) => x.label.startsWith(secNum))) {
-        divMap[divNum].push({ label, page });
-      }
-      return;
-    }
-    const dm = text.match(DIV_RE);
-    if (dm) {
-      const divNum = dm[1].padStart(2, "0");
-      if (!divMap[divNum]) divMap[divNum] = [];
-      if (!divMap[divNum].some((x) => x.page === page)) {
-        divMap[divNum].push({ label: `Division ${divNum} start`, page });
-      }
-    }
+    const allMatches = [...text.matchAll(SECTION_RE_G)];
+    if (allMatches.length === 0) return;
+    // 5+ unique sections on one page → likely a table of contents, skip
+    const uniqueSecs = new Set(allMatches.map((m) => normSec(m[1])));
+    if (uniqueSecs.size >= 5) return;
+    allMatches.forEach((m) => {
+      const secNum = normSec(m[1]);
+      if (firstPage[secNum]) return; // already have first occurrence
+      const divNum = secNum.slice(0, 2);
+      const titleM = m[0].match(/\d{2}\s+\d{2}\s+\d{2}\s*[-–—]?\s*(.+)/i);
+      const title  = titleM ? titleM[1].trim().slice(0, 60) : "";
+      firstPage[secNum] = { page, divNum, label: title ? `${secNum} — ${title}` : secNum };
+    });
   });
+
+  // Build divMap from deduplicated first occurrences
+  const divMap = {};
+  Object.values(firstPage).forEach(({ page, divNum, label }) => {
+    if (!divMap[divNum]) divMap[divNum] = [];
+    divMap[divNum].push({ label, page });
+  });
+
+  // Fallback: division-only detection
+  if (Object.keys(divMap).length === 0) {
+    (pageTexts || []).forEach((text, i) => {
+      if (!text) return;
+      const page = i + 1;
+      const dm = text.match(DIV_RE);
+      if (dm) {
+        const divNum = dm[1].padStart(2, "0");
+        if (!divMap[divNum]) divMap[divNum] = [];
+        if (!divMap[divNum].some((x) => x.page === page)) {
+          divMap[divNum].push({ label: `Division ${divNum} start`, page });
+        }
+      }
+    });
+  }
+
   if (Object.keys(divMap).length === 0) {
     const groups = [];
     for (let p = 1; p <= (numPages || 0); p += 20) {
