@@ -192,6 +192,7 @@ export default function App() {
     });
 
     xhr.addEventListener("load", async () => {
+      console.log(`[upload] XHR response — status: ${xhr.status}, body: ${xhr.responseText.slice(0, 300)}`);
       try {
         if (xhr.status < 200 || xhr.status >= 300) {
           let msg = `Upload failed (${xhr.status})`;
@@ -397,8 +398,10 @@ export default function App() {
       downloadXHR(`${base}/pdf-api/sample/drawings`, "drawings"),
       downloadXHR(`${base}/pdf-api/sample/specs`,    "specs"),
     ]).then(([drawingsBlob, specsBlob]) => {
+      console.log(`[sample] downloads complete — drawings: ${(drawingsBlob.size / 1024 / 1024).toFixed(1)} MB, specs: ${(specsBlob.size / 1024 / 1024).toFixed(1)} MB`);
       const drawingsFile = new File([drawingsBlob], "Wimbish_Gym_Addition_Drawings.pdf",      { type: "application/pdf" });
       const specsFile    = new File([specsBlob],    "Wimbish_Gym_Addition_Specifications.pdf", { type: "application/pdf" });
+      console.log(`[sample] calling uploadFile with drawings File object — size: ${(drawingsFile.size / 1024 / 1024).toFixed(1)} MB, type: ${drawingsFile.type}`);
       setShowSampleModal(false);
       setSampleLoading(null);
       setPendingTabFiles([specsFile]);
@@ -407,7 +410,7 @@ export default function App() {
       uploadFile(drawingsFile);
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Network error";
-      console.error("[sample] load failed:", msg);
+      console.error("[sample] download failed:", msg);
       setSampleLoading(null);
       setSampleError(msg);
     });

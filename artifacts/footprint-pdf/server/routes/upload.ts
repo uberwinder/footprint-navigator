@@ -134,18 +134,34 @@ router.post(
       // Fast metadata-only parse — no text extraction (client handles that).
       // Using a no-op pagerender avoids calling getTextContent() on every page,
       // which is the expensive step. numpages and info are still populated.
-      const result: PdfParseResult = await pdfParse(req.file.buffer, {
-        pagerender: async () => "",
-      });
+      let pages = 0;
+      let info: Record<string, unknown> | null = null;
+      try {
+        const result: PdfParseResult = await pdfParse(req.file.buffer, {
+          pagerender: async () => "",
+        });
+        pages = result.numpages;
+        info  = result.info ?? null;
+        console.log(`[upload] pdf-parse OK — pages: ${pages}, file: ${req.file.originalname}, size: ${(req.file.size / 1024 / 1024).toFixed(1)} MB`);
+      } catch (parseErr) {
+        // pdf-parse fails on some large or complex PDFs. Fall back gracefully —
+        // the client uses pdfjs-dist to load the PDF natively and will determine
+        // the real page count itself during text extraction.
+        const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
+        console.warn(`[upload] pdf-parse failed for "${req.file.originalname}" (${(req.file.size / 1024 / 1024).toFixed(1)} MB): ${msg} — falling back to pages:0`);
+        pages = 0;
+        info  = null;
+      }
 
       return res.json({
         filename: req.file.originalname,
         size: req.file.size,
-        pages: result.numpages,
-        info: result.info ?? null,
+        pages,
+        info,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
+      console.error(`[upload] unexpected error: ${message}`);
       return res.status(500).json({ error: message });
     }
   },
