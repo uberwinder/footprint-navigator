@@ -1,0 +1,87 @@
+TWO FIXES:
+
+--- FIX 1: SPECS DOCUMENT THUMBNAIL LABELS ---
+
+The specs/project manual document is showing sheet 
+numbers like A0.01, C1.00, C1.01 in the thumbnail 
+panel. These are wrong — it is picking up sheet 
+numbers from the drawings document's index and 
+applying them to the specs pages.
+
+Fix the thumbnail label logic:
+
+1. When labeling thumbnails, check the document type 
+   before applying sheet number labels.
+
+2. Document type detection — a document is a SPEC/MANUAL 
+   if ANY of these are true:
+   - Filename contains: "spec", "manual", "project manual", 
+     "division", "CSI" (case insensitive)
+   - The first 5 pages contain CSI section patterns like 
+     "SECTION 00", "SECTION 01", "Division 0" etc.
+   - The document has no detectable sheet number pattern 
+     (A0.01, P2.01 etc) on any of the first 10 pages
+
+3. If the document is identified as a spec/manual:
+   - Label thumbnails as "Page 1", "Page 2", etc — 
+     never use sheet numbers
+   - Do not run sheet number detection on this document
+   - Store docType: "spec" on the document metadata
+
+4. If the document is identified as drawings:
+   - Run sheet number detection as normal
+   - Label thumbnails with detected sheet numbers
+
+5. The docType should also be passed to the chat 
+   retrieval so Navigator knows which document 
+   type it is searching.
+
+--- FIX 2: BOOKMARKS PANEL IN LEFT TOOLBAR ---
+
+Add a Bookmarks panel to the left sidebar toolbar.
+This is a new feature — it does not exist yet.
+
+The bookmarks panel should:
+
+1. Appear as a bookmark icon in the left toolbar 
+   (use a ribbon/bookmark icon, suggest ☰ or 🔖)
+   Position it below the thumbnails and search icons.
+
+2. When clicked, open a panel showing auto-detected 
+   bookmarks for the active document.
+
+3. FOR DRAWINGS documents — auto-detect and group 
+   by discipline prefix:
+   - Group headers: A (Architectural), C (Civil), 
+     E (Electrical), FA (Fire Alarm), FP (Fire Protection),
+     M (Mechanical), P (Plumbing), S (Structural), 
+     T (Technology) — use the prefix of detected sheet numbers
+   - Each group is collapsible/expandable
+   - Under each group list the individual sheets: 
+     A0.01, A0.10, A1.01 etc
+   - Clicking a sheet jumps to that page
+
+4. FOR SPECS documents — auto-detect CSI divisions:
+   - Group headers: Division 00, Division 01... Division 33
+   - Only show divisions that actually exist in the document
+   - Each division is collapsible/expandable
+   - Under each division list detected sections: 
+     "09 65 00 - Resilient Flooring" etc
+   - Clicking a section jumps to that page
+   - If no CSI sections detected, show page-based 
+     bookmarks as fallback
+
+5. All bookmark labels are editable — double-click 
+   any label to edit it inline, same pattern as 
+   the thumbnail sheet number editing.
+
+6. Add a small "refresh" icon at the top of the 
+   bookmarks panel to re-run auto-detection if 
+   needed.
+
+7. Store bookmarks in component state — no 
+   persistence needed for now.
+
+Show the implementation plan before building. 
+Confirm the plan handles both drawings and specs 
+documents correctly before writing any code.

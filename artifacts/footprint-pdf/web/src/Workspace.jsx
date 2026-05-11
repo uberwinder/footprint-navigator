@@ -692,7 +692,9 @@ function renderMarkdown(text) {
 //   group 3 = sheet reference (dotted or plain)
 const CHAT_LINK_RE = /(\bpages?\s+(\d+)(?:\s*[-–]\s*\d+)?)|(\b[A-Z]{1,2}\d{1,2}\.\d{2,3}\b|\b[A-Z]{1,2}\d{3,4}\b)/g;
 
-function parsePlainWithLinks(str, sheetsUpper, onJump, k) {
+// sheetMap: plain object { "A5.01": 47, "S101": 12 } — sheet ref → 1-based page number
+// Built from ALL open documents so lookups work regardless of which tab is active.
+function parsePlainWithLinks(str, sheetMap, onJump, k) {
   const parts = [];
   let last = 0;
   const re = new RegExp(CHAT_LINK_RE.source, "g"); // fresh instance each call
@@ -711,11 +713,11 @@ function parsePlainWithLinks(str, sheetsUpper, onJump, k) {
         parts.push(<span key={k.v++}>{full}</span>);
       }
     } else if (m[3]) {
-      // Sheet reference — only link if it exists in the active document's sheet index
+      // Sheet reference — look up across all open documents
       const ref = full.toUpperCase().trim();
-      const idx = sheetsUpper.indexOf(ref);
-      if (idx >= 0) {
-        const pg = idx + 1;
+      const pg  = sheetMap[ref];
+      console.log("[link] sheet match:", full, "→ ref:", ref, "→ page:", pg, "map size:", Object.keys(sheetMap).length);
+      if (pg > 0) {
         parts.push(
           <span key={k.v++} className="ws-chat-link" title={`Go to sheet ${ref} (page ${pg})`} onClick={() => onJump(pg)}>{full}</span>
         );
@@ -729,19 +731,18 @@ function parsePlainWithLinks(str, sheetsUpper, onJump, k) {
   return parts;
 }
 
-function parseInlineWithLinks(str, sheetsUpper, onJump, k) {
+function parseInlineWithLinks(str, sheetMap, onJump, k) {
   const tokens = str.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
   return tokens.flatMap((tok) => {
     if (!tok) return [];
     if (tok.startsWith("**") && tok.endsWith("**")) return [<strong key={k.v++}>{tok.slice(2, -2)}</strong>];
     if (tok.startsWith("*") && tok.endsWith("*"))   return [<em key={k.v++}>{tok.slice(1, -1)}</em>];
-    return parsePlainWithLinks(tok, sheetsUpper, onJump, k);
+    return parsePlainWithLinks(tok, sheetMap, onJump, k);
   });
 }
 
-function renderMarkdownWithLinks(text, pageSheets, onJump) {
+function renderMarkdownWithLinks(text, sheetMap, onJump) {
   if (!text) return null;
-  const sheetsUpper = (pageSheets || []).map(s => (s || "").toUpperCase().trim());
   const k = { v: 0 }; // mutable key counter threaded through all helpers
   const lines = text.split("\n");
   const out = [];
@@ -755,7 +756,7 @@ function renderMarkdownWithLinks(text, pageSheets, onJump) {
     if (olItems) { out.push(<ol key={k.v++} className="ws-chat-md-list ws-chat-md-ol">{olItems}</ol>); olItems = null; }
   };
   const flush = () => { flushUl(); flushOl(); };
-  const pi = (s) => parseInlineWithLinks(s, sheetsUpper, onJump, k);
+  const pi = (s) => parseInlineWithLinks(s, sheetMap, onJump, k);
 
   for (const line of lines) {
     if (/^##\s/.test(line)) {
@@ -866,6 +867,18 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const activePageTexts  = activeDoc ? activeDoc.pageTexts  : pageTexts;
   const activePageTitles = activeDoc ? activeDoc.pageTitles : pageTitles;
   const activePageSheets = activeDoc ? activeDoc.pageSheets : pageSheets;
+
+  // Combined sheet → page map across ALL open documents (primary + extra tabs).
+  // Extra docs are added first so primary doc wins if the same sheet label
+  // appears in multiple documents (unlikely but safe).
+  const allSheetsMap = (() => {
+    const map = {};
+    for (const doc of extraDocs) {
+      (doc.pageSheets || []).forEach((s, i) => { if (s) map[s.toUpperCase().trim()] = i + 1; });
+    }
+    (pageSheets || []).forEach((s, i) => { if (s) map[s.toUpperCase().trim()] = i + 1; });
+    return map;
+  })();
   const activeNumPages   = activeDoc ? activeDoc.numPages   : (numPages || meta.pages);
   const activeMeta       = activeDoc ? { filename: activeDoc.name, pages: activeDoc.numPages } : meta;
   const searchResults = searchQuery ? buildSearchResults(activePageTexts, searchQuery) : [];
@@ -3482,7 +3495,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                       <>
                         <span className="ws-chat-text ws-chat-text--md">
                           {msg.aiAnswer
-                            ? renderMarkdownWithLinks(msg.text, activePageSheets, jumpToPage)
+                            ? renderMarkdownWithLinks(msg.text, allSheetsMap, jumpToPage)
                             : renderMarkdown(msg.text)}
                         </span>
                         {msg.aiAnswer && msg.model && (
