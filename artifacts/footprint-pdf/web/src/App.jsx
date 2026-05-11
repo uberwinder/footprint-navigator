@@ -157,11 +157,12 @@ export default function App() {
     setPageTitles([]); setPageSheets([]);
     setError(""); setUploadProgress(0); setUploadEta(null); setUploadDone(false);
     setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
-    setPendingTabFiles([]); setExtraFilesAsSameProject(false);
+    setPendingTabFiles([]); setExtraFilesAsSameProject(false); setPendingProjectName(null);
+    setSampleLoading(null); setSampleProgress({ drawings: 0, specs: 0 });
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const uploadFile = useCallback((selected) => {
+  const uploadFile = useCallback((selected, { keepProjectState = false } = {}) => {
     setAppState("loading");
     setError("");
     setMeta(null); setExtractedText(""); setPageTexts([]);
@@ -169,6 +170,11 @@ export default function App() {
     setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
     setFile(selected);
     setUploadProgress(0); setUploadEta(null); setUploadDone(false);
+    // Clear all project-association state unless this upload is intentionally
+    // part of a multi-doc session (e.g. the sample project loader).
+    if (!keepProjectState) {
+      setPendingTabFiles([]); setExtraFilesAsSameProject(false); setPendingProjectName(null);
+    }
 
     const formData = new FormData();
     formData.append("file", selected);
@@ -407,7 +413,7 @@ export default function App() {
       setPendingTabFiles([specsFile]);
       setExtraFilesAsSameProject(true);
       setPendingProjectName("Sample");
-      uploadFile(drawingsFile);
+      uploadFile(drawingsFile, { keepProjectState: true });
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Network error";
       console.error("[sample] download failed:", msg);
