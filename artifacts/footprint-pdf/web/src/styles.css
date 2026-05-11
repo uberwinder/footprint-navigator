@@ -1026,8 +1026,8 @@ button { font-family: inherit; }
 }
 .ws-cost-main   { font-size: 12px; font-weight: 600; color: #fff; }
 .ws-cost-detail { font-size: 10px; color: var(--text-dim); }
-.ws-chat-model-line { font-size: 10px; color: #666; margin-top: 1px; }
-.ws-chat-confidence-line { font-size: 10px; color: #666; margin-top: 1px; }
+.ws-chat-model-line { font-size: 10px; color: #999; margin-top: 1px; }
+.ws-chat-confidence-line { font-size: 10px; color: #999; margin-top: 1px; }
 .ws-chat-confidence-label--high   { color: #16a34a; font-weight: 600; }
 .ws-chat-confidence-label--medium { color: #ca8a04; font-weight: 600; }
 .ws-chat-confidence-label--low    { color: #dc2626; font-weight: 600; }
