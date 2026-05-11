@@ -260,7 +260,7 @@ const MENUS = [
 const RAIL_TABS = [
   { id: "thumbnails", icon: "⊞", tooltip: "Thumbnails" },
   { id: "search",     icon: "⌕", tooltip: "Search" },
-  { id: "bookmarks",  icon: "⊟", tooltip: "Bookmarks" },
+  { id: "bookmarks",  icon: "🔖", tooltip: "Bookmarks" },
   { id: "layers",     icon: "⧉", tooltip: "Layers" },
   { id: "markups",    icon: "✎", tooltip: "Markups" },
   { id: "measure",    icon: "⊢", tooltip: "Measurements" },
@@ -987,6 +987,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // Refs
   const canvasRef           = useRef(null);
   const canvasWrapRef       = useRef(null);
+  const canvasColRef        = useRef(null);
   const renderTaskRef       = useRef(null);
   const menuBarRef          = useRef(null);
   const fileInputRef        = useRef(null);
@@ -1055,10 +1056,13 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   const calcFitWidthScale = useCallback(async (doc, num) => {
-    if (!doc || !canvasWrapRef.current) return 1;
+    if (!doc) return 1;
+    // In continuous mode canvasWrapRef is not mounted; fall back to the canvas column
+    const widthEl = canvasWrapRef.current ?? canvasColRef.current;
+    if (!widthEl) return 1;
     const page = await doc.getPage(num);
     const vp = page.getViewport({ scale: 1 });
-    const availW = canvasWrapRef.current.clientWidth - 64;
+    const availW = widthEl.clientWidth - 64;
     return Math.max(0.1, availW / vp.width);
   }, []);
 
@@ -1149,7 +1153,8 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     (async () => {
       const s = await calcFitWidthScale(pdfDoc, 1);
       setScale(s);
-      await renderPage(pdfDoc, 1, s, searchQuery);
+      // renderPage targets the single-page canvas — skip it in continuous mode
+      if (viewMode !== "continuous") await renderPage(pdfDoc, 1, s, searchQuery);
       // Page dimensions (1 PDF unit = 1/72 inch)
       const page = await pdfDoc.getPage(1);
       const vp = page.getViewport({ scale: 1 });
@@ -2394,7 +2399,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const tabsAutoLoadedRef = useRef(false);
   useEffect(() => {
     if (tabsAutoLoadedRef.current) return;
-    if (!pdfDoc || !pendingTabFiles?.length) return;
+    if (!pendingTabFiles?.length) return;
     tabsAutoLoadedRef.current = true;
 
     (async () => {
@@ -2412,7 +2417,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         await loadExtraDoc(f, projectId);
       }
     })();
-  }, [pdfDoc, pendingTabFiles]); // eslint-disable-line
+  }, [pendingTabFiles]); // eslint-disable-line
 
   const removeExtraDoc = useCallback((id) => {
     setExtraDocs(prev => prev.filter(d => d.id !== id));
@@ -3014,7 +3019,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         </button>
 
         {/* Canvas Column */}
-        <div className="ws-canvas-col">
+        <div className="ws-canvas-col" ref={canvasColRef}>
           {calibMode && (
             <div className="ws-calib-banner">
               <span>
@@ -4557,6 +4562,7 @@ function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, docType }
 }
 
 function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename, docType }) {
+  console.log("[thumb] docType:", docType);
   const pages = Array.from({ length: numPages }, (_, i) => i + 1);
   return (
     <div className="ws-thumblist">
@@ -4620,6 +4626,20 @@ function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename, docType 
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, [pdfDoc, pageNum]);
+
+  // Re-run sheet detection when docType corrects from "spec" → "drawings" after render
+  useEffect(() => {
+    if (docType === "spec" || !rendered.current || !pdfDoc || detectedSheet) return;
+    (async () => {
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const fullVp = page.getViewport({ scale: 1 });
+        const textContent = await page.getTextContent();
+        const sheet = extractSheetNumber(textContent.items, fullVp, pageNum);
+        if (sheet) setDetectedSheet(sheet);
+      } catch { /* ignore */ }
+    })();
+  }, [docType, pdfDoc, pageNum, detectedSheet]);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -4848,7 +4868,10 @@ function detectDocType(filename, pageTexts) {
   if (first5.some((t) => CSI_RE.test(t || ""))) return "spec";
   const SHEET_PAT = /\b[A-Z]{1,2}\d+\.\d{2}\b/;
   const first10 = (pageTexts || []).slice(0, 10);
-  if (first10.length > 0 && !first10.some((t) => SHEET_PAT.test(t || ""))) return "spec";
+  // Only infer "spec" from absent sheet numbers when there IS extractable text —
+  // if all texts are empty (extraction not yet done) we default to "drawings".
+  const nonEmpty10 = first10.filter((t) => (t || "").trim().length > 0);
+  if (nonEmpty10.length > 0 && !nonEmpty10.some((t) => SHEET_PAT.test(t))) return "spec";
   return "drawings";
 }
 
