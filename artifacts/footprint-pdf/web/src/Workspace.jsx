@@ -258,8 +258,14 @@ const MENUS = [
 ];
 
 const BOOKMARK_SVG = (
-  <svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M2 2h12v16l-6-4-6 4V2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+  <svg width="18" height="22" viewBox="0 0 18 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M3 2h12a2 2 0 0 1 2 2v15l-8-5-8 5V4a2 2 0 0 1 2-2z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+      fill="none"
+    />
   </svg>
 );
 
@@ -1007,10 +1013,8 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // Mirror current page/scale into refs for use inside event handlers
   const pageNumRef = useRef(pageNum);
   const scaleRef    = useRef(scale);
-  const viewModeRef = useRef(viewMode);
-  useEffect(() => { pageNumRef.current  = pageNum;  }, [pageNum]);
-  useEffect(() => { scaleRef.current    = scale;    }, [scale]);
-  useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
+  useEffect(() => { pageNumRef.current = pageNum; }, [pageNum]);
+  useEffect(() => { scaleRef.current   = scale;   }, [scale]);
 
   // ── PDF load error state ───────────────────────────────────────────────────
   const [pdfLoadError, setPdfLoadError] = useState(null);
@@ -1226,23 +1230,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     return () => wrap.removeEventListener("wheel", onWheel);
   }, []);
 
-  // ── Ctrl+Scroll zoom for continuous/split modes (canvasWrapRef not mounted) ─
-  useEffect(() => {
-    const col = canvasColRef.current;
-    if (!col) return;
-    const onWheel = (e) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      // Single mode has its own handler on the inner wrap — skip to avoid double-zoom
-      if (viewModeRef.current === "single") return;
-      e.preventDefault();
-      const currentS = scaleRef.current ?? 1;
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
-      const next = Math.min(5, Math.max(0.1, parseFloat((currentS * factor).toFixed(3))));
-      setScale(next);
-    };
-    col.addEventListener("wheel", onWheel, { passive: false });
-    return () => col.removeEventListener("wheel", onWheel);
-  }, []);
 
   // ── Pan Drag ───────────────────────────────────────────────────────────────
 
