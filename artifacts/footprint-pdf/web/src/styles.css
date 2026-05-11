@@ -599,7 +599,7 @@ button { font-family: inherit; }
   border-radius: 4px 4px 0 0; padding: 0 10px 0 12px;
   height: 28px; font-size: 12px; color: var(--text); max-width: 240px;
 }
-.ws-tab.active { background: var(--panel-elev); border-color: var(--accent); color: #fff; }
+.ws-tab.active { background: #1e1e1e; border: 2px solid #007BFF; border-bottom: none; color: #fff; font-weight: 600; }
 .ws-tab-name  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .ws-tab-close {
   background: transparent; border: none; color: var(--text-dim);
