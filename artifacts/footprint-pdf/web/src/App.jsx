@@ -374,6 +374,7 @@ export default function App() {
   const [sampleError, setSampleError] = useState(null);
 
   const loadSampleProject = useCallback(() => {
+    console.log("[sample] v2 - bypass active - no upload");
     setSampleLoading(true);
     setSampleError(null);
     setSampleProgress({ drawings: 0, specs: 0 });
