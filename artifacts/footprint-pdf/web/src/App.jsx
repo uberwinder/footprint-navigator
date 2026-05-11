@@ -367,7 +367,10 @@ export default function App() {
   }, [combineFiles, combineName, uploadFile]);
 
   // ── Sample project loader ─────────────────────────────────────────────────────
-  // Fetch via Express proxy (/pdf-api/sample/*) to avoid R2 CORS restrictions.
+  // Downloads via Express proxy (/pdf-api/sample/*) to avoid R2 CORS issues.
+  // Files are loaded directly into the browser as ArrayBuffers — the server
+  // upload endpoint (/pdf-api/upload) is never called, so Render never buffers
+  // 151 MB in RAM and the free-tier 502 is eliminated entirely.
   const [sampleError, setSampleError] = useState(null);
 
   const loadSampleProject = useCallback(() => {
@@ -377,10 +380,11 @@ export default function App() {
 
     const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
+    // responseType "arraybuffer" — progress events work identically to "blob"
     const downloadXHR = (url, key) => new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("GET", url, true);
-      xhr.responseType = "blob";
+      xhr.responseType = "arraybuffer";
       xhr.onprogress = (e) => {
         if (e.lengthComputable) {
           setSampleProgress((prev) => ({ ...prev, [key]: Math.round((e.loaded / e.total) * 100) }));
@@ -389,12 +393,12 @@ export default function App() {
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           setSampleProgress((prev) => ({ ...prev, [key]: 100 }));
-          resolve(xhr.response);
+          resolve(xhr.response); // ArrayBuffer
         } else {
           reject(new Error(`HTTP ${xhr.status} on ${key}`));
         }
       };
-      xhr.onerror = () => reject(new Error(`Network error fetching ${key}`));
+      xhr.onerror  = () => reject(new Error(`Network error fetching ${key}`));
       xhr.ontimeout = () => reject(new Error(`Timeout fetching ${key}`));
       console.log(`[sample] starting download: ${url}`);
       xhr.send();
@@ -403,24 +407,93 @@ export default function App() {
     Promise.all([
       downloadXHR(`${base}/pdf-api/sample/drawings`, "drawings"),
       downloadXHR(`${base}/pdf-api/sample/specs`,    "specs"),
-    ]).then(([drawingsBlob, specsBlob]) => {
-      console.log(`[sample] downloads complete — drawings: ${(drawingsBlob.size / 1024 / 1024).toFixed(1)} MB, specs: ${(specsBlob.size / 1024 / 1024).toFixed(1)} MB`);
-      const drawingsFile = new File([drawingsBlob], "Wimbish_Gym_Addition_Drawings.pdf",      { type: "application/pdf" });
-      const specsFile    = new File([specsBlob],    "Wimbish_Gym_Addition_Specifications.pdf", { type: "application/pdf" });
-      console.log(`[sample] calling uploadFile with drawings File object — size: ${(drawingsFile.size / 1024 / 1024).toFixed(1)} MB, type: ${drawingsFile.type}`);
+    ]).then(async ([drawingsBuffer, specsBuffer]) => {
+      console.log(`[sample] downloads complete — drawings: ${(drawingsBuffer.byteLength / 1024 / 1024).toFixed(1)} MB, specs: ${(specsBuffer.byteLength / 1024 / 1024).toFixed(1)} MB`);
+
+      // ── Count pages client-side via pdfjs (zero server RAM) ───────────────
+      // Use .slice(0) so the original buffer isn't transferred/detached before
+      // we wrap it in a File for text extraction.
+      let pages = 0;
+      try {
+        const pdfDoc = await pdfjsLib.getDocument({ data: drawingsBuffer.slice(0) }).promise;
+        pages = pdfDoc.numPages;
+        await pdfDoc.destroy();
+        console.log(`[sample] pdfjs page count: ${pages}`);
+      } catch (e) {
+        console.warn("[sample] pdfjs page count failed, defaulting to 0:", e.message);
+      }
+
+      // ── Wrap in File objects (runTextExtraction and loadExtraDoc expect File) ─
+      const drawingsFile = new File([drawingsBuffer], "Wimbish_Gym_Addition_Drawings.pdf",      { type: "application/pdf" });
+      const specsFile    = new File([specsBuffer],    "Wimbish_Gym_Addition_Specifications.pdf", { type: "application/pdf" });
+
+      // ── Set state directly — mirrors uploadFile's XHR onload handler ────────
+      // Server upload endpoint never called → 0 bytes of RAM on Render.
       setShowSampleModal(false);
       setSampleLoading(null);
+      setError("");
+      setFile(drawingsFile);
+      setMeta({ filename: drawingsFile.name, size: drawingsBuffer.byteLength, pages, info: null });
+      setPageTexts(Array(pages).fill(""));
+      setPageTitles(Array(pages).fill(""));
+      setPageSheets(Array(pages).fill(""));
+      setExtractedText("");
+      setUploadProgress(100);
+      setUploadDone(true);
+      // Specs go into pendingTabFiles → Workspace's loadExtraDoc handles them
+      // client-side (also never touches the upload endpoint).
       setPendingTabFiles([specsFile]);
       setExtraFilesAsSameProject(true);
       setPendingProjectName("Sample");
-      uploadFile(drawingsFile, { keepProjectState: true });
+      setAppState("workspace");
+
+      // ── Background text extraction ──────────────────────────────────────────
+      const extractCtrl = new AbortController();
+      ocrAbortRef.current = extractCtrl;
+      let extractedPageTexts = [];
+      try {
+        const extracted = await runTextExtraction(drawingsFile, pages, extractCtrl.signal);
+        if (extractCtrl.signal.aborted) return;
+        extractedPageTexts = extracted.pageTexts;
+        setPageTexts(extractedPageTexts);
+        setPageTitles(extracted.pageTitles);
+        setPageSheets(extracted.pageSheets);
+        setExtractedText(extractedPageTexts.join("\n\n"));
+      } catch (e) {
+        if (!extractCtrl.signal.aborted) setError(`Text extraction failed: ${e.message}`);
+        return;
+      }
+
+      // ── OCR fallback if text-sparse ─────────────────────────────────────────
+      const avgChars = extractedPageTexts.length > 0
+        ? extractedPageTexts.reduce((s, t) => s + (t || "").length, 0) / extractedPageTexts.length
+        : 0;
+      if (avgChars < OCR_CHAR_THRESHOLD && pages > 0) {
+        setIsOcring(true);
+        const ocrCtrl = new AbortController();
+        ocrAbortRef.current = ocrCtrl;
+        try {
+          const ocrTexts = await runOcr(drawingsFile, pages,
+            (pg, total) => setOcrProgress({ page: pg, total }),
+            ocrCtrl.signal,
+          );
+          if (!ocrCtrl.signal.aborted) {
+            setPageTexts(ocrTexts);
+            setExtractedText(ocrTexts.join("\n\n"));
+          }
+        } catch (e) {
+          if (!ocrCtrl.signal.aborted) setError(`OCR failed: ${e.message}`);
+        } finally {
+          setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
+        }
+      }
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Network error";
-      console.error("[sample] download failed:", msg);
+      console.error("[sample] load failed:", msg);
       setSampleLoading(null);
       setSampleError(msg);
     });
-  }, [uploadFile]);
+  }, []); // all deps are stable refs, setters, or module-level constants
 
   // ── Drag-to-reorder for combine file list ─────────────────────────────────────
   const handleDragStart = useCallback((index) => { dragIndexRef.current = index; }, []);
