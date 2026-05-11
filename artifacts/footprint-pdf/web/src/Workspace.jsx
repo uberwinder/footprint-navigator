@@ -2956,6 +2956,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
               <div className="ws-panel-body">
                 {activePanelTab === "thumbnails" && pdfDoc && (
                   <ThumbnailList
+                    key={activeDocId ?? activeMeta.filename}
                     pdfDoc={pdfDoc}
                     numPages={activeNumPages}
                     currentPage={pageNum}
@@ -2976,6 +2977,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                 )}
                 {activePanelTab === "bookmarks" && (
                   <BookmarksPanel
+                    key={activeDocId ?? activeMeta.filename}
                     pageSheets={activePageSheets}
                     pageTexts={activePageTexts}
                     numPages={activeNumPages}
@@ -4396,7 +4398,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 // ── Sub-Components ────────────────────────────────────────────────────────────
 
 function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, docType }) {
-  console.log("[bookmarks] props:", { docType, pageSheets: pageSheets?.length, pageTexts: pageTexts?.length, numPages });
   const buildGroups = () =>
     docType === "spec"
       ? buildSpecBookmarks(pageTexts, numPages)
@@ -4865,7 +4866,8 @@ function buildDrawingsBookmarks(pageSheets) {
 }
 
 function buildSpecBookmarks(pageTexts, numPages) {
-  const SECTION_RE = /SECTION\s+(\d{2}\s+\d{2}\s+\d{2})[^\n]*/i;
+  // Match both spaced "09 65 00" and compact "096500" CSI section numbers
+  const SECTION_RE = /SECTION\s+(\d{2}[\s-]?\d{2}[\s-]?\d{2})\b[^\n]*/i;
   const DIV_RE     = /DIVISION\s+(\d{2})\b/i;
   const divMap = {};
   (pageTexts || []).forEach((text, i) => {
