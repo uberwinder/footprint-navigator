@@ -1780,18 +1780,87 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       return;
     }
 
-    // Sheet number pattern: A3.10, P2.01, S-101, M1.00, A101, etc.
-    const sheetMatch = q.match(/^([A-Za-z]{1,3}[-.]?\d{1,2}[-.]\d{2,3}|[A-Za-z]\d{3})$/);
-    if (sheetMatch) {
-      const sheet = sheetMatch[1].toUpperCase();
-      const idx = activePageTexts?.findIndex((pt) => pt && pt.toUpperCase().includes(sheet));
-      if (idx >= 0) {
-        jumpToPage(idx + 1);
-        setChatMessages((prev) => [...prev,
-          { role: "navigator", text: `Navigating to sheet ${sheet}.`, results: [] }]);
+    // ── Sheet navigation (exact + fuzzy matching) ────────────────────────────
+    const SHEET_NUM_RE_SRC = "[A-Za-z]{1,3}[-.]?\\d{1,2}[.-]\\d{2,3}|[A-Za-z]\\d{3}";
+    const sheetNavCandidate = (() => {
+      // "go to A0.23", "take me to sheet P2.01", "show me E-101", etc.
+      const nav = q.match(new RegExp(
+        "(?:take me to|go to|navigate to|show me|open|find|jump to|get me to)(?:\\s+sheet)?\\s+(" + SHEET_NUM_RE_SRC + ")",
+        "i",
+      ));
+      if (nav) return nav[1];
+      // Bare sheet number typed alone
+      const bare = q.match(new RegExp("^(" + SHEET_NUM_RE_SRC + ")$", "i"));
+      if (bare) return bare[1];
+      return null;
+    })();
+
+    if (sheetNavCandidate) {
+      const target = sheetNavCandidate.toUpperCase();
+      const sheetsArr = (activePageSheets || []).map((s) => (s || "").toUpperCase());
+
+      // Levenshtein distance
+      const levenshtein = (a, b) => {
+        const m = a.length, n = b.length;
+        const dp = Array.from({ length: m + 1 }, (_, i) =>
+          Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))
+        );
+        for (let i = 1; i <= m; i++) {
+          for (let j = 1; j <= n; j++) {
+            dp[i][j] = a[i-1] === b[j-1]
+              ? dp[i-1][j-1]
+              : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+          }
+        }
+        return dp[m][n];
+      };
+
+      // Exact lookup in activePageSheets
+      let exactIdx = sheetsArr.findIndex((s) => s === target);
+
+      // Fallback: text search across page content (catches sheets not in the index)
+      if (exactIdx < 0) {
+        exactIdx = (activePageTexts || []).findIndex((pt) => pt && pt.toUpperCase().includes(target));
+      }
+
+      if (exactIdx >= 0) {
+        const pg = exactIdx + 1;
+        jumpToPage(pg);
+        setChatMessages((prev) => [...prev, {
+          role: "navigator",
+          text: "Here you go —",
+          results: [{ page: pg, before: "Sheet ", match: target, after: "" }],
+        }]);
+        return;
+      }
+
+      // No exact match — fuzzy search the known sheet index
+      const knownSheets = sheetsArr.map((s, i) => ({ s, page: i + 1 })).filter((x) => x.s);
+      if (knownSheets.length > 0) {
+        const scored = knownSheets
+          .map((x) => ({ ...x, dist: levenshtein(target, x.s) }))
+          .sort((a, b) => a.dist - b.dist);
+        const best = scored[0];
+        if (best.dist <= 3) {
+          setChatMessages((prev) => [...prev, {
+            role: "navigator",
+            text: `I don't see ${target} in this document. Did you mean —`,
+            results: [{ page: best.page, before: "Sheet ", match: best.s, after: "" }],
+          }]);
+        } else {
+          const sample = knownSheets.slice(0, 10).map((x) => x.s).join(", ");
+          setChatMessages((prev) => [...prev, {
+            role: "navigator",
+            text: `I don't see sheet ${target} in this document. Available sheets include: ${sample}.`,
+            results: [],
+          }]);
+        }
       } else {
-        setChatMessages((prev) => [...prev,
-          { role: "navigator", text: `Sheet ${sheet} not found in this document.`, results: [] }]);
+        setChatMessages((prev) => [...prev, {
+          role: "navigator",
+          text: `I don't see sheet ${target} in this document. No sheet index has been detected — sheet numbers are read from each page's title block.`,
+          results: [],
+        }]);
       }
       return;
     }

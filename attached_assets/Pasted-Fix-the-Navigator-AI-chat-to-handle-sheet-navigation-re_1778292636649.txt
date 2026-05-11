@@ -1,0 +1,49 @@
+Fix the Navigator AI chat to handle sheet navigation 
+requests correctly.
+
+PROBLEM 1 — SHEET NAVIGATION NOT WORKING:
+When a user says "take me to A0.23" or "go to sheet 
+A0.23" or "show me A0.23", Navigator should:
+1. Check the list of detected sheet numbers from 
+   the thumbnail panel (pageSheets array)
+2. If the sheet exists, respond with a clickable 
+   page link: "Here you go — [A0.23 →](#) " that 
+   jumps to that page when clicked, exactly like 
+   other page reference links in chat
+3. Never say it cannot find a sheet without first 
+   checking the actual sheet index
+
+PROBLEM 2 — FUZZY MATCHING FOR TYPOS:
+If the requested sheet does not exist in the index:
+1. Find the closest match using fuzzy string matching
+2. Respond: "I don't see A0.23 in this document. 
+   Did you mean [A0.22 →](#)?" with a clickable link
+3. If no close match exists say: "I don't see sheet 
+   A0.23 in this document. The available sheets are 
+   [list the first 10 sheet numbers]"
+
+IMPLEMENTATION:
+1. Pass the pageSheets array to the chat context 
+   so Navigator knows exactly which sheets exist
+2. Add sheet navigation detection to the query 
+   classifier — if the question matches patterns 
+   like "take me to", "go to", "show me", "open" 
+   followed by a sheet number pattern, treat it 
+   as a navigation request not a document search
+3. For navigation requests, skip the AI call entirely 
+   and return the clickable link directly — this is 
+   faster and more reliable than asking the AI
+4. For fuzzy matching use the existing rapidfuzz 
+   pattern or implement Levenshtein distance on 
+   the sheet numbers
+
+Also add this to the system prompt:
+"When a user asks to navigate to a specific sheet 
+number like A0.23 or P2.01, always check the 
+document sheet index first. If the sheet exists 
+provide a clickable page link. If it does not exist 
+suggest the closest matching sheet number. Never 
+say you cannot find a sheet without checking the 
+sheet index and suggesting alternatives."
+
+Push to GitHub after implementing.
