@@ -8,7 +8,8 @@ const SAMPLE_URLS: Record<string, string> = {
 };
 
 router.get("/sample/:file", async (req: Request, res: Response) => {
-  const key  = req.params["file"] ?? "";
+  const raw  = req.params["file"];
+  const key  = Array.isArray(raw) ? (raw[0] ?? "") : (raw ?? "");
   const url  = SAMPLE_URLS[key];
   if (!url) return res.status(404).json({ error: "Unknown sample file. Use 'drawings' or 'specs'." });
 
