@@ -257,10 +257,16 @@ const MENUS = [
   },
 ];
 
+const BOOKMARK_SVG = (
+  <svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2 2h12v16l-6-4-6 4V2z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+  </svg>
+);
+
 const RAIL_TABS = [
-  { id: "thumbnails", icon: "⊞", tooltip: "Thumbnails" },
-  { id: "search",     icon: "⌕", tooltip: "Search" },
-  { id: "bookmarks",  icon: "🔖", tooltip: "Bookmarks" },
+  { id: "thumbnails", icon: "⊞",         tooltip: "Thumbnails" },
+  { id: "search",     icon: "⌕",         tooltip: "Search" },
+  { id: "bookmarks",  icon: BOOKMARK_SVG, tooltip: "Bookmarks" },
   { id: "layers",     icon: "⧉", tooltip: "Layers" },
   { id: "markups",    icon: "✎", tooltip: "Markups" },
   { id: "measure",    icon: "⊢", tooltip: "Measurements" },
@@ -1000,9 +1006,11 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
   // Mirror current page/scale into refs for use inside event handlers
   const pageNumRef = useRef(pageNum);
-  const scaleRef   = useRef(scale);
-  useEffect(() => { pageNumRef.current = pageNum; }, [pageNum]);
-  useEffect(() => { scaleRef.current   = scale;   }, [scale]);
+  const scaleRef    = useRef(scale);
+  const viewModeRef = useRef(viewMode);
+  useEffect(() => { pageNumRef.current  = pageNum;  }, [pageNum]);
+  useEffect(() => { scaleRef.current    = scale;    }, [scale]);
+  useEffect(() => { viewModeRef.current = viewMode; }, [viewMode]);
 
   // ── PDF load error state ───────────────────────────────────────────────────
   const [pdfLoadError, setPdfLoadError] = useState(null);
@@ -1216,6 +1224,24 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     };
     wrap.addEventListener("wheel", onWheel, { passive: false });
     return () => wrap.removeEventListener("wheel", onWheel);
+  }, []);
+
+  // ── Ctrl+Scroll zoom for continuous/split modes (canvasWrapRef not mounted) ─
+  useEffect(() => {
+    const col = canvasColRef.current;
+    if (!col) return;
+    const onWheel = (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      // Single mode has its own handler on the inner wrap — skip to avoid double-zoom
+      if (viewModeRef.current === "single") return;
+      e.preventDefault();
+      const currentS = scaleRef.current ?? 1;
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const next = Math.min(5, Math.max(0.1, parseFloat((currentS * factor).toFixed(3))));
+      setScale(next);
+    };
+    col.addEventListener("wheel", onWheel, { passive: false });
+    return () => col.removeEventListener("wheel", onWheel);
   }, []);
 
   // ── Pan Drag ───────────────────────────────────────────────────────────────
