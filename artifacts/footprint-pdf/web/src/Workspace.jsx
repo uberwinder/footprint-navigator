@@ -48,6 +48,9 @@ function _addToMemory(question, answer, pageRefs) {
 const DEFAULT_SYSTEM_PROMPT =
   "You are a construction document assistant. Answer questions using ONLY the document text provided. " +
   "Always cite the page number where you found the answer. " +
+  "For location questions like 'where is X', always check drawings first. If the answer exists on a drawing sheet, lead with that. " +
+  "Only reference the specifications if the drawings do not contain the answer or if the user specifically asks about specs. " +
+  "The finish schedule, equipment schedules, door schedules, and room finish schedules are almost always found on drawings, not in the project manual. " +
   "If the answer is not clearly present, do NOT simply say you could not find it. " +
   "Instead, ask a clarifying follow-up question — for example: if asked about 'front elevations' and you see 'exterior elevations', ask 'Did you mean exterior elevations? I found references on page X.' " +
   "Never give up without first suggesting an alternative or asking a one-sentence follow-up question. " +
@@ -2061,17 +2064,37 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       const fileCtx = contextFiles.map((f) => `[File: ${f.name}]\n${f.text.slice(0, 3000)}`).join("\n\n");
       summaryCtx = summaryCtx ? `${summaryCtx}\n\nAdditional project context:\n${fileCtx}` : fileCtx;
     }
+    // Detect location-type queries — used to prioritise drawings over specs in context
+    const LOCATION_RE = /\bwhere\s+(?:is|are|can|do|does)\b|\bwhere\b.{0,30}\bfound\b|\blocate\b|\bwhich\s+sheet\b|\bfind\s+the\b.{0,40}schedule\b/i;
+    const isLocationQuery = LOCATION_RE.test(q);
+
     // Other docs in the same project as the active doc
     const activeProjectId = activeDoc ? activeDoc.projectId : primaryProjectId;
     if (activeProjectId) {
       const projPeers = extraDocs.filter(d => d.id !== activeDocId && d.projectId === activeProjectId);
       // Also include primary if it belongs to same project but we are viewing an extra doc
       const primaryPeer = (activeDocId && primaryProjectId === activeProjectId)
-        ? [{ name: meta.filename, pageTexts }] : [];
-      const allPeers = [...primaryPeer, ...projPeers.map(d => ({ name: d.name, pageTexts: d.pageTexts }))];
+        ? [{ name: meta.filename, pageTexts, pageSheets }] : [];
+      const allPeers = [
+        ...primaryPeer,
+        ...projPeers.map(d => ({ name: d.name, pageTexts: d.pageTexts, pageSheets: d.pageSheets })),
+      ];
       if (allPeers.length > 0) {
-        const projCtx = allPeers
-          .map(d => `[Project doc: ${d.name}]\n${(d.pageTexts || []).slice(0, 8).join(" ").slice(0, 4000)}`)
+        // For location queries, sort drawings docs (have sheet metadata) before spec/manual docs
+        const isDrawingsDoc = (d) => {
+          const lc = (d.name || "").toLowerCase();
+          if (/spec|manual|division|csi/.test(lc)) return false;
+          return (d.pageSheets || []).some(Boolean);
+        };
+        const orderedPeers = isLocationQuery
+          ? [...allPeers].sort((a, b) => Number(isDrawingsDoc(b)) - Number(isDrawingsDoc(a)))
+          : allPeers;
+        // For location queries, give drawings docs more page context (12 pages vs 8)
+        const projCtx = orderedPeers
+          .map(d => {
+            const pagesForDoc = isLocationQuery && isDrawingsDoc(d) ? 12 : 8;
+            return `[Project doc: ${d.name}]\n${(d.pageTexts || []).slice(0, pagesForDoc).join(" ").slice(0, 5000)}`;
+          })
           .join("\n\n");
         summaryCtx = summaryCtx ? `${summaryCtx}\n\nOther project documents:\n${projCtx}` : `Other project documents:\n${projCtx}`;
       }
