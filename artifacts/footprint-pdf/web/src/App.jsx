@@ -120,7 +120,8 @@ export default function App() {
 
   // ── Sample documents modal ───────────────────────────────────────────────────
   const [showSampleModal, setShowSampleModal] = useState(false);
-  const [sampleLoading,   setSampleLoading]   = useState(null); // filename currently being fetched
+  const [sampleLoading,   setSampleLoading]   = useState(null);
+  const [sampleProgress,  setSampleProgress]  = useState({ drawings: 0, specs: 0 });
 
   const inputRef        = useRef(null);
   const ocrAbortRef     = useRef(null);
@@ -362,16 +363,41 @@ export default function App() {
   // Fetch via Express proxy (/pdf-api/sample/*) to avoid R2 CORS restrictions.
   const [sampleError, setSampleError] = useState(null);
 
-  const loadSampleProject = useCallback(async () => {
-    setSampleLoading("loading");
+  const loadSampleProject = useCallback(() => {
+    setSampleLoading(true);
     setSampleError(null);
-    try {
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
-      const [drawingsBlob, specsBlob] = await Promise.all([
-        fetch(`${base}/pdf-api/sample/drawings`).then((r) => { if (!r.ok) throw new Error(`Server error ${r.status} fetching drawings`); return r.blob(); }),
-        fetch(`${base}/pdf-api/sample/specs`).then((r)    => { if (!r.ok) throw new Error(`Server error ${r.status} fetching specs`);    return r.blob(); }),
-      ]);
-      const drawingsFile = new File([drawingsBlob], "Wimbish_Gym_Addition_Drawings.pdf", { type: "application/pdf" });
+    setSampleProgress({ drawings: 0, specs: 0 });
+
+    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+
+    const downloadXHR = (url, key) => new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("GET", url, true);
+      xhr.responseType = "blob";
+      xhr.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setSampleProgress((prev) => ({ ...prev, [key]: Math.round((e.loaded / e.total) * 100) }));
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setSampleProgress((prev) => ({ ...prev, [key]: 100 }));
+          resolve(xhr.response);
+        } else {
+          reject(new Error(`HTTP ${xhr.status} on ${key}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error(`Network error fetching ${key}`));
+      xhr.ontimeout = () => reject(new Error(`Timeout fetching ${key}`));
+      console.log(`[sample] starting download: ${url}`);
+      xhr.send();
+    });
+
+    Promise.all([
+      downloadXHR(`${base}/pdf-api/sample/drawings`, "drawings"),
+      downloadXHR(`${base}/pdf-api/sample/specs`,    "specs"),
+    ]).then(([drawingsBlob, specsBlob]) => {
+      const drawingsFile = new File([drawingsBlob], "Wimbish_Gym_Addition_Drawings.pdf",      { type: "application/pdf" });
       const specsFile    = new File([specsBlob],    "Wimbish_Gym_Addition_Specifications.pdf", { type: "application/pdf" });
       setShowSampleModal(false);
       setSampleLoading(null);
@@ -379,11 +405,12 @@ export default function App() {
       setExtraFilesAsSameProject(true);
       setPendingProjectName("Sample");
       uploadFile(drawingsFile);
-    } catch (err) {
-      setSampleLoading(null);
+    }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Network error";
+      console.error("[sample] load failed:", msg);
+      setSampleLoading(null);
       setSampleError(msg);
-    }
+    });
   }, [uploadFile]);
 
   // ── Drag-to-reorder for combine file list ─────────────────────────────────────
@@ -673,9 +700,22 @@ export default function App() {
                     </button>
                   </div>
                   {sampleLoading && (
-                    <p className="sample-fetch-hint">
-                      Loading sample project — fetching both documents simultaneously. The drawings set is 151 MB so this may take a moment…
-                    </p>
+                    <div className="sample-fetch-progress">
+                      <div className="sample-fetch-row">
+                        <span>Construction Drawings (151 MB)</span>
+                        <span>{sampleProgress.drawings}%</span>
+                      </div>
+                      <div className="sample-fetch-bar">
+                        <div className="sample-fetch-bar-fill" style={{ width: `${sampleProgress.drawings}%` }} />
+                      </div>
+                      <div className="sample-fetch-row">
+                        <span>Project Specifications (16 MB)</span>
+                        <span>{sampleProgress.specs}%</span>
+                      </div>
+                      <div className="sample-fetch-bar">
+                        <div className="sample-fetch-bar-fill" style={{ width: `${sampleProgress.specs}%` }} />
+                      </div>
+                    </div>
                   )}
                   {sampleError && (
                     <p className="sample-fetch-error">Error: {sampleError}</p>
