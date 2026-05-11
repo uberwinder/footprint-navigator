@@ -174,7 +174,7 @@ export default function App() {
     formData.append("file", selected);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/pdf-api/upload");
-    xhr.timeout = 300_000;
+    xhr.timeout = 600_000;
     const startTime = Date.now();
 
     xhr.upload.addEventListener("progress", (event) => {

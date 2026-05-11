@@ -7,7 +7,7 @@ const router: IRouter = Router();
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype === "application/pdf") {
       cb(null, true);
@@ -159,7 +159,7 @@ router.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => 
   if (err instanceof multer.MulterError) {
     const message =
       err.code === "LIMIT_FILE_SIZE"
-        ? "File too large — maximum upload size is 100 MB"
+        ? "File too large — maximum upload size is 500 MB"
         : `Upload error: ${err.message}`;
     res.status(413).json({ error: message });
     return;
