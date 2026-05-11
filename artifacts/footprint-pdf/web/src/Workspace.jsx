@@ -682,6 +682,107 @@ function renderMarkdown(text) {
   return out;
 }
 
+// ── Chat response link detection ─────────────────────────────────────────────
+// Detects sheet numbers (A5.01, S101, FA201 …) and "page N / pages N-M"
+// references in AI response text and renders them as clickable spans.
+// Only applied to navigator AI messages — user messages use plain renderMarkdown.
+
+// Two shape groups:
+//   group 1 = full "page(s) N" match,  group 2 = the page digit(s)
+//   group 3 = sheet reference (dotted or plain)
+const CHAT_LINK_RE = /(\bpages?\s+(\d+)(?:\s*[-–]\s*\d+)?)|(\b[A-Z]{1,2}\d{1,2}\.\d{2,3}\b|\b[A-Z]{1,2}\d{3,4}\b)/g;
+
+function parsePlainWithLinks(str, sheetsUpper, onJump, k) {
+  const parts = [];
+  let last = 0;
+  const re = new RegExp(CHAT_LINK_RE.source, "g"); // fresh instance each call
+  let m;
+  while ((m = re.exec(str)) !== null) {
+    if (m.index > last) parts.push(<span key={k.v++}>{str.slice(last, m.index)}</span>);
+    const full = m[0];
+    if (m[1]) {
+      // "page N" or "pages N-M" — link to first number
+      const pg = parseInt(m[2], 10);
+      if (pg > 0) {
+        parts.push(
+          <span key={k.v++} className="ws-chat-link" title={`Go to page ${pg}`} onClick={() => onJump(pg)}>{full}</span>
+        );
+      } else {
+        parts.push(<span key={k.v++}>{full}</span>);
+      }
+    } else if (m[3]) {
+      // Sheet reference — only link if it exists in the active document's sheet index
+      const ref = full.toUpperCase().trim();
+      const idx = sheetsUpper.indexOf(ref);
+      if (idx >= 0) {
+        const pg = idx + 1;
+        parts.push(
+          <span key={k.v++} className="ws-chat-link" title={`Go to sheet ${ref} (page ${pg})`} onClick={() => onJump(pg)}>{full}</span>
+        );
+      } else {
+        parts.push(<span key={k.v++}>{full}</span>);
+      }
+    }
+    last = m.index + full.length;
+  }
+  if (last < str.length) parts.push(<span key={k.v++}>{str.slice(last)}</span>);
+  return parts;
+}
+
+function parseInlineWithLinks(str, sheetsUpper, onJump, k) {
+  const tokens = str.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return tokens.flatMap((tok) => {
+    if (!tok) return [];
+    if (tok.startsWith("**") && tok.endsWith("**")) return [<strong key={k.v++}>{tok.slice(2, -2)}</strong>];
+    if (tok.startsWith("*") && tok.endsWith("*"))   return [<em key={k.v++}>{tok.slice(1, -1)}</em>];
+    return parsePlainWithLinks(tok, sheetsUpper, onJump, k);
+  });
+}
+
+function renderMarkdownWithLinks(text, pageSheets, onJump) {
+  if (!text) return null;
+  const sheetsUpper = (pageSheets || []).map(s => (s || "").toUpperCase().trim());
+  const k = { v: 0 }; // mutable key counter threaded through all helpers
+  const lines = text.split("\n");
+  const out = [];
+  let ulItems = null;
+  let olItems = null;
+
+  const flushUl = () => {
+    if (ulItems) { out.push(<ul key={k.v++} className="ws-chat-md-list">{ulItems}</ul>); ulItems = null; }
+  };
+  const flushOl = () => {
+    if (olItems) { out.push(<ol key={k.v++} className="ws-chat-md-list ws-chat-md-ol">{olItems}</ol>); olItems = null; }
+  };
+  const flush = () => { flushUl(); flushOl(); };
+  const pi = (s) => parseInlineWithLinks(s, sheetsUpper, onJump, k);
+
+  for (const line of lines) {
+    if (/^##\s/.test(line)) {
+      flush();
+      out.push(<p key={k.v++} className="ws-chat-md-h">{pi(line.replace(/^##\s/, ""))}</p>);
+    } else if (/^#\s/.test(line)) {
+      flush();
+      out.push(<p key={k.v++} className="ws-chat-md-h">{pi(line.replace(/^#\s/, ""))}</p>);
+    } else if (/^[-*]\s/.test(line)) {
+      flushOl();
+      if (!ulItems) ulItems = [];
+      ulItems.push(<li key={k.v++}>{pi(line.slice(2))}</li>);
+    } else if (/^\d+\.\s/.test(line)) {
+      flushUl();
+      if (!olItems) olItems = [];
+      olItems.push(<li key={k.v++}>{pi(line.replace(/^\d+\.\s/, ""))}</li>);
+    } else if (line.trim() === "") {
+      flush();
+    } else {
+      flush();
+      out.push(<span key={k.v++} className="ws-chat-md-line">{pi(line)}</span>);
+    }
+  }
+  flush();
+  return out;
+}
+
 // ── Workspace ────────────────────────────────────────────────────────────────
 
 export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject, pendingProjectName }) {
@@ -3379,7 +3480,11 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                       <span className="ws-chat-thinking">{thinkingText}</span>
                     ) : (
                       <>
-                        <span className="ws-chat-text ws-chat-text--md">{renderMarkdown(msg.text)}</span>
+                        <span className="ws-chat-text ws-chat-text--md">
+                          {msg.aiAnswer
+                            ? renderMarkdownWithLinks(msg.text, activePageSheets, jumpToPage)
+                            : renderMarkdown(msg.text)}
+                        </span>
                         {msg.aiAnswer && msg.model && (
                           <span className="ws-chat-model-line">
                             {MODEL_DISPLAY[msg.model]?.name || msg.model} · {msg.complexity} · {msg.latencyMs}ms

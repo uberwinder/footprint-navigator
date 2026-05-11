@@ -1035,6 +1035,8 @@ button { font-family: inherit; }
 .ws-chat-text     { font-size: 13px; color: #f0f0f0; line-height: 1.5; }
 .ws-chat-text--md { display: flex; flex-direction: column; gap: 3px; }
 .ws-chat-md-line  { display: block; font-size: 13px; color: #f0f0f0; line-height: 1.55; }
+.ws-chat-link { color: #4da6ff; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.ws-chat-link:hover { color: #80c4ff; }
 .ws-chat-md-h     { font-size: 13px; font-weight: 700; color: #f4f6fa; margin: 4px 0 1px; }
 .ws-chat-md-list  { margin: 2px 0 2px 18px; padding: 0; font-size: 13px; color: #f0f0f0; line-height: 1.6; list-style: disc; }
 .ws-chat-md-ol    { list-style: decimal; }

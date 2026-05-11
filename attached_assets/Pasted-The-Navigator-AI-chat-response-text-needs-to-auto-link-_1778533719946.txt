@@ -1,0 +1,80 @@
+The Navigator AI chat response text needs to auto-link 
+page and sheet references so users can click directly 
+to the location.
+
+PROBLEM:
+When Navigator says things like:
+- "found on sheet A5.01"
+- "see page 143"
+- "under section 09 65 00 - Resilient Flooring on page 153"
+...these are plain text. Nothing is clickable.
+
+WHAT WE WANT:
+Any sheet number or page number mentioned in a Navigator 
+response should render as an underlined clickable link.
+Clicking it calls jumpToPage(pageNumber) to navigate 
+directly to that page in the viewer.
+
+HOW TO IMPLEMENT:
+
+1. AFTER the AI response text is received, run it 
+   through a parseResponseLinks() function before 
+   rendering it in the chat panel.
+
+2. parseResponseLinks() should detect these patterns 
+   in the response text:
+   - Sheet numbers: A5.01, P201, E301, A0.10, M3.02, 
+     S101, etc — pattern: [A-Z]{1,2}[0-9]{1,2}\.[0-9]{2,3}
+     or [A-Z]{1,2}[0-9]{3,4}
+   - "page 143" or "page 47" — pattern: page\s+(\d+)
+   - "pages 12-14" — link to page 12
+   - CSI section numbers like "09 65 00" when 
+     accompanied by "page X" nearby — link to that page
+
+3. For sheet number matches:
+   - Look up the sheet in activePageSheets to find 
+     the actual page number
+   - If found, wrap the sheet reference in a clickable 
+     span: onClick={() => jumpToPage(pageNumber)}
+   - Style: underline, color: #007BFF (electric blue), 
+     cursor: pointer
+   - Tooltip on hover: "Go to sheet A5.01 (page 47)"
+
+4. For "page N" matches:
+   - Wrap in a clickable span that calls jumpToPage(N)
+   - Style: same as above
+   - Tooltip: "Go to page 143"
+
+5. For CSI section mentions that include a page number:
+   - Link the section name to the page number mentioned
+   - e.g. "09 65 00 - Resilient Flooring on page 153" 
+     → "09 65 00 - Resilient Flooring" becomes clickable, 
+     goes to page 153
+
+6. The chat message renderer must render these as 
+   real React elements (not innerHTML) so the onClick 
+   handlers work. If the chat currently renders 
+   messages as plain text or dangerouslySetInnerHTML, 
+   replace that with a component that splits the 
+   text into segments and renders clickable spans 
+   inline with the text.
+
+7. The existing markdown rendering (bold, italic, 
+   bullets) must still work — apply link detection 
+   AFTER markdown parsing, not before.
+
+EDGE CASES:
+- If a sheet number in the response doesn't exist in 
+  activePageSheets, still show it as text (no link) — 
+  do not break the response
+- Do not link sheet numbers that appear inside code 
+  blocks or quoted strings
+- "page 0" should never be linked
+
+This affects only the chat message rendering — no 
+changes to the AI prompt or retrieval logic.
+
+Push to GitHub after implementing and confirm with 
+one test: ask "where is the finish schedule" and 
+verify the sheet reference in the response is 
+underlined and clickable.
