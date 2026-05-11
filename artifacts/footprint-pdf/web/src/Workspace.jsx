@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import WorkspaceOnboarding from "./WorkspaceOnboarding.jsx";
+import ContinuousViewer from "./ContinuousViewer.jsx";
 import * as pdfjsLib from "pdfjs-dist";
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
@@ -165,6 +166,7 @@ const MENUS = [
   {
     id: "view", label: "View",
     items: [
+      { label: "Continuous Scroll",  action: "viewContinuous",  note: "Ctrl+5" },
       { label: "Single Page",       action: "viewSingle",      note: "Ctrl+1" },
       { label: "Split Vertical",    action: "viewSplitV",      note: "Ctrl+2" },
       { label: "Split Horizontal",  action: "viewSplitH",      note: "Ctrl+H" },
@@ -804,7 +806,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const [activePanelTab, setActivePanelTab] = useState("thumbnails");
   const [panelOpen,      setPanelOpen]      = useState(true);
   const [leftOpen,       setLeftOpen]       = useState(true);
-  const [viewMode,       setViewMode]       = useState("single"); // "single"|"splitV"|"splitH"
+  const [viewMode,       setViewMode]       = useState("continuous"); // "continuous"|"single"|"splitV"|"splitH"
   const [pageDims,       setPageDims]       = useState("");
 
   // Search
@@ -1400,7 +1402,8 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         }
       }
 
-      // View mode (Ctrl+1, Ctrl+2, Ctrl+H)
+      // View mode (Ctrl+5, Ctrl+1, Ctrl+2, Ctrl+H)
+      if (ctrl && k === "5") { e.preventDefault(); setViewMode((m) => m === "continuous" ? "single" : "continuous"); return; }
       if (ctrl && k === "1") { e.preventDefault(); setViewMode("single");  return; }
       if (ctrl && k === "2") { e.preventDefault(); setViewMode("splitV");  return; }
       if (ctrl && (k === "h" || k === "H")) { e.preventDefault(); setViewMode("splitH"); return; }
@@ -1671,6 +1674,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     else if (action === "preferences")  { setChatOpen(true); setSettingsOpen(true); }
 
     // View
+    else if (action === "viewContinuous") setViewMode("continuous");
     else if (action === "viewSingle")     setViewMode("single");
     else if (action === "viewSplitV")     setViewMode("splitV");
     else if (action === "viewSplitH")     setViewMode("splitH");
@@ -2486,6 +2490,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const cursor = calibMode ? "crosshair" : (TOOL_CURSOR[currentTool] || "default");
 
   const getMenuItemCheck = (action) => {
+    if (action === "viewContinuous")   return viewMode === "continuous";
     if (action === "viewSingle")       return viewMode === "single";
     if (action === "viewSplitV")       return viewMode === "splitV";
     if (action === "viewSplitH")       return viewMode === "splitH";
@@ -3046,7 +3051,15 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
             </div>
           )}
 
-          {viewMode === "single" ? (
+          {viewMode === "continuous" && pdfDoc ? (
+            <ContinuousViewer
+              pdfDoc={pdfDoc}
+              numPages={numPages || meta.pages}
+              scale={scale ?? 1}
+              pageNum={pageNum}
+              setPageNum={setPageNum}
+            />
+          ) : viewMode === "single" ? (
             <div
               className="ws-doc-canvas"
               style={{ cursor: cursor === "grab" ? "grab" : cursor, display: pdfDoc ? undefined : "none" }}
@@ -3629,14 +3642,16 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       <div className="ws-btbar">
         {/* Left: view mode icons */}
         <div className="ws-btbar-group">
+          <button className={`ws-btbtn ${viewMode === "continuous" ? "ws-btbtn--active" : ""}`}
+            title="Continuous Scroll (Ctrl+5)" onClick={() => setViewMode("continuous")}>
+            <span className="ws-btbtn-pages-icon">▤</span>
+          </button>
           <button className={`ws-btbtn ${viewMode === "single" ? "ws-btbtn--active" : ""}`}
             title="Single Page (Ctrl+1)" onClick={() => setViewMode("single")}>⊡</button>
           <button className={`ws-btbtn ${viewMode === "splitV" ? "ws-btbtn--active" : ""}`}
             title="Split Vertical (Ctrl+2)" onClick={() => setViewMode("splitV")}>◫</button>
           <button className={`ws-btbtn ${viewMode === "splitH" ? "ws-btbtn--active" : ""}`}
             title="Split Horizontal (Ctrl+H)" onClick={() => setViewMode("splitH")}>⊟</button>
-          <button className="ws-btbtn" title="Continuous scroll" disabled>☰</button>
-          <button className="ws-btbtn" title="View" disabled>⊞</button>
         </div>
 
         {/* Center: tools + page nav + view history */}

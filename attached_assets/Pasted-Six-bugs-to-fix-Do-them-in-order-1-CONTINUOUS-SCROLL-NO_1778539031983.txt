@@ -1,0 +1,58 @@
+Six bugs to fix. Do them in order:
+
+1. CONTINUOUS SCROLL NOT WORKING:
+The viewer is not showing continuous scroll by 
+default. The ContinuousViewer component may not 
+be wired into the canvas column correctly.
+Check: is viewMode defaulting to "continuous"? 
+Is ContinuousViewer actually rendering in the 
+JSX when viewMode === "continuous"? Show me the 
+exact JSX branch in the canvas column before 
+fixing anything.
+
+2. VIEW MENU MISSING TOGGLE:
+The View menu in the top toolbar has no 
+"Continuous Scroll" option and no toggle button 
+in the bottom toolbar. Confirm these were added 
+in the last commit and if not, add them now.
+
+3. TOP TOOLBAR NOT STICKY:
+The top toolbar scrolls out of view when the 
+user scrolls down. The sticky CSS fix from 
+commit 12cc4672 did not work.
+Find the actual outermost container of the app 
+layout and check if it has overflow: auto or 
+overflow: hidden set — this breaks position: sticky.
+Fix the layout so the toolbar stays visible. 
+This may require changing the scroll container 
+to be the canvas column only, not the whole page.
+
+4. THUMBNAIL SHEET DETECTION REGRESSED:
+Drawing sheet numbers are not being detected 
+as well as before on the drawings document.
+Check if the key={activeDocId} change on 
+ThumbnailList caused the intersection observer 
+to stop firing correctly, or if detectDocType 
+is incorrectly classifying the drawings as specs.
+Add console.log("[thumb] docType:", docType) 
+at the top of ThumbnailList to diagnose.
+
+5. BOOKMARKS ICON:
+The bookmarks panel icon in the left toolbar 
+does not look like a bookmark.
+Replace it with the Unicode bookmark symbol 
+🔖 or use an SVG ribbon shape. If using text,
+use a proper bookmark icon.
+
+6. SECOND TAB LOADS LATE ON SAMPLE PROJECT:
+When the sample project loads, the specs tab 
+appears noticeably later than the drawings tab.
+Check whether the two files load in parallel 
+or sequentially. If sequential, change to 
+parallel fetch using Promise.all.
+
+Show me the diagnosis for bugs 1, 3, and 4 
+before fixing them. Fix bugs 2, 5, and 6 
+immediately without waiting.
+
+Push diagnosis + immediate fixes to GitHub.
