@@ -884,6 +884,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   })();
   const activeNumPages   = activeDoc ? activeDoc.numPages   : (numPages || meta.pages);
   const activeMeta       = activeDoc ? { filename: activeDoc.name, pages: activeDoc.numPages } : meta;
+  const activeDocType    = detectDocType(activeMeta.filename, activePageTexts);
   const searchResults = searchQuery ? buildSearchResults(activePageTexts, searchQuery) : [];
   // Editable staging for settings (committed on Save)
   const [stgPrompt,       setStgPrompt]       = useState(() => localStorage.getItem("navigator-system-prompt") || "");
@@ -2956,10 +2957,11 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                 {activePanelTab === "thumbnails" && pdfDoc && (
                   <ThumbnailList
                     pdfDoc={pdfDoc}
-                    numPages={numPages || meta.pages}
+                    numPages={activeNumPages}
                     currentPage={pageNum}
                     onSelect={jumpToPage}
-                    filename={meta.filename}
+                    filename={activeMeta.filename}
+                    docType={activeDocType}
                   />
                 )}
                 {activePanelTab === "search" && (
@@ -2972,7 +2974,16 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                     jumpToPage={jumpToPage}
                   />
                 )}
-                {activePanelTab !== "thumbnails" && activePanelTab !== "search" && (
+                {activePanelTab === "bookmarks" && (
+                  <BookmarksPanel
+                    pageSheets={activePageSheets}
+                    pageTexts={activePageTexts}
+                    numPages={activeNumPages}
+                    jumpToPage={jumpToPage}
+                    docType={activeDocType}
+                  />
+                )}
+                {activePanelTab !== "thumbnails" && activePanelTab !== "search" && activePanelTab !== "bookmarks" && (
                   <div className="ws-panel-empty">
                     <p className="ws-panel-empty-title">
                       {RAIL_TABS.find((t) => t.id === activePanelTab)?.tooltip}
@@ -4384,7 +4395,137 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
 // ── Sub-Components ────────────────────────────────────────────────────────────
 
-function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename }) {
+function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, docType }) {
+  console.log("[bookmarks] props:", { docType, pageSheets: pageSheets?.length, pageTexts: pageTexts?.length, numPages });
+  const buildGroups = () =>
+    docType === "spec"
+      ? buildSpecBookmarks(pageTexts, numPages)
+      : buildDrawingsBookmarks(pageSheets);
+
+  const [groups,    setGroups]    = useState(() => buildGroups());
+  const [collapsed, setCollapsed] = useState(new Set());
+  const [editing,   setEditing]   = useState(null); // { groupKey, itemIdx, value }
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    setGroups(buildGroups());
+    setCollapsed(new Set());
+    setEditing(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docType, pageSheets, pageTexts, numPages]);
+
+  useEffect(() => {
+    if (editing && inputRef.current) inputRef.current.focus();
+  }, [editing]);
+
+  const toggleGroup = (key) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const commitEdit = () => {
+    if (!editing) return;
+    const trimmed = editing.value.trim();
+    if (trimmed) {
+      setGroups((prev) =>
+        prev.map((g) =>
+          g.key !== editing.groupKey ? g : {
+            ...g,
+            items: g.items.map((item, i) =>
+              i === editing.itemIdx ? { ...item, label: trimmed } : item
+            ),
+          }
+        )
+      );
+    }
+    setEditing(null);
+  };
+
+  const totalItems = groups.reduce((s, g) => s + g.items.length, 0);
+
+  return (
+    <div className="ws-bm-panel">
+      <div className="ws-bm-toolbar">
+        <span className="ws-bm-count">{totalItems} {docType === "spec" ? "sections" : "sheets"}</span>
+        <button
+          className="ws-bm-refresh"
+          title="Re-detect bookmarks"
+          onClick={() => { setGroups(buildGroups()); setEditing(null); }}
+        >↺</button>
+      </div>
+
+      {groups.length === 0 ? (
+        <div className="ws-panel-empty">
+          <p className="ws-panel-empty-hint">No bookmarks detected</p>
+        </div>
+      ) : (
+        groups.map((group) => (
+          <div key={group.key} className="ws-bm-group">
+            <button
+              className="ws-bm-group-header"
+              onClick={() => toggleGroup(group.key)}
+            >
+              <span className="ws-bm-arrow">{collapsed.has(group.key) ? "▶" : "▼"}</span>
+              <span className="ws-bm-group-label">{group.label}</span>
+              <span className="ws-bm-group-count">{group.items.length}</span>
+            </button>
+
+            {!collapsed.has(group.key) && (
+              <div className="ws-bm-items">
+                {group.items.map((item, idx) => {
+                  const isEditingThis =
+                    editing?.groupKey === group.key && editing?.itemIdx === idx;
+                  return (
+                    <div
+                      key={idx}
+                      className="ws-bm-item"
+                      onClick={() => { if (!isEditingThis) jumpToPage(item.page); }}
+                      title={`Go to page ${item.page}`}
+                    >
+                      {isEditingThis ? (
+                        <input
+                          ref={inputRef}
+                          className="ws-bm-input"
+                          value={editing.value}
+                          onChange={(e) =>
+                            setEditing((prev) => ({ ...prev, value: e.target.value }))
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter")  { e.preventDefault(); commitEdit(); }
+                            if (e.key === "Escape") { e.preventDefault(); setEditing(null); }
+                          }}
+                          onBlur={commitEdit}
+                        />
+                      ) : (
+                        <span
+                          className="ws-bm-item-label"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setEditing({ groupKey: group.key, itemIdx: idx, value: item.label });
+                          }}
+                          title="Double-click to edit"
+                        >
+                          {item.label}
+                        </span>
+                      )}
+                      <span className="ws-bm-item-page">p.{item.page}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename, docType }) {
   const pages = Array.from({ length: numPages }, (_, i) => i + 1);
   return (
     <div className="ws-thumblist">
@@ -4396,13 +4537,14 @@ function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename }) {
           isActive={n === currentPage}
           onSelect={onSelect}
           filename={filename}
+          docType={docType}
         />
       ))}
     </div>
   );
 }
 
-function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename }) {
+function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename, docType }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rendered     = useRef(false);
@@ -4433,11 +4575,13 @@ function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename }) {
           canvas.height = Math.floor(viewport.height);
           await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
 
-          // Detect sheet number after canvas render
-          const fullVp = page.getViewport({ scale: 1 });
-          const textContent = await page.getTextContent();
-          const sheet = extractSheetNumber(textContent.items, fullVp, pageNum);
-          if (sheet) setDetectedSheet(sheet);
+          // Detect sheet number after canvas render — skip for spec/manual documents
+          if (docType !== "spec") {
+            const fullVp = page.getViewport({ scale: 1 });
+            const textContent = await page.getTextContent();
+            const sheet = extractSheetNumber(textContent.items, fullVp, pageNum);
+            if (sheet) setDetectedSheet(sheet);
+          }
         } catch { /* ignore cancelled renders */ }
       },
       { rootMargin: "150px" }
@@ -4660,6 +4804,114 @@ function SearchPanel({ searchInput, setSearchInput, searchQuery, runSearch, sear
       )}
     </div>
   );
+}
+
+// ── Document type detection ────────────────────────────────────────────────────
+
+/** Returns "spec" or "drawings" based on filename + first-page text content. */
+function detectDocType(filename, pageTexts) {
+  const lc = (filename || "").toLowerCase();
+  if (/spec|manual|project\s*manual|division|csi/.test(lc)) return "spec";
+  const CSI_RE = /\b(?:SECTION|DIVISION)\s+0*\d{1,2}\b/i;
+  const first5 = (pageTexts || []).slice(0, 5);
+  if (first5.some((t) => CSI_RE.test(t || ""))) return "spec";
+  const SHEET_PAT = /\b[A-Z]{1,2}\d+\.\d{2}\b/;
+  const first10 = (pageTexts || []).slice(0, 10);
+  if (first10.length > 0 && !first10.some((t) => SHEET_PAT.test(t || ""))) return "spec";
+  return "drawings";
+}
+
+// ── Bookmark helpers ───────────────────────────────────────────────────────────
+
+const DISCIPLINE_NAMES = {
+  A: "Architectural", C: "Civil", E: "Electrical",
+  FA: "Fire Alarm", FP: "Fire Protection",
+  M: "Mechanical", P: "Plumbing", S: "Structural", T: "Technology",
+};
+
+const CSI_DIVISION_NAMES = {
+  "00": "Procurement & Contracting", "01": "General Requirements",
+  "02": "Existing Conditions",       "03": "Concrete",
+  "04": "Masonry",                   "05": "Metals",
+  "06": "Wood, Plastics & Composites","07": "Thermal & Moisture Protection",
+  "08": "Openings",                  "09": "Finishes",
+  "10": "Specialties",               "11": "Equipment",
+  "12": "Furnishings",               "13": "Special Construction",
+  "14": "Conveying Equipment",       "21": "Fire Suppression",
+  "22": "Plumbing",                  "23": "HVAC",
+  "25": "Integrated Automation",     "26": "Electrical",
+  "27": "Communications",            "28": "Electronic Safety",
+  "31": "Earthwork",                 "32": "Exterior Improvements",
+  "33": "Utilities",
+};
+
+function buildDrawingsBookmarks(pageSheets) {
+  const groupMap = {};
+  const PREFIX_RE = /^([A-Z]{1,2})\d/;
+  (pageSheets || []).forEach((sheet, i) => {
+    if (!sheet) return;
+    const m = sheet.match(PREFIX_RE);
+    const prefix = m ? m[1] : "?";
+    if (!groupMap[prefix]) groupMap[prefix] = [];
+    groupMap[prefix].push({ label: sheet, page: i + 1 });
+  });
+  return Object.entries(groupMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([prefix, items]) => ({
+      key: prefix,
+      label: `${prefix} — ${DISCIPLINE_NAMES[prefix] || "Other"}`,
+      items,
+    }));
+}
+
+function buildSpecBookmarks(pageTexts, numPages) {
+  const SECTION_RE = /SECTION\s+(\d{2}\s+\d{2}\s+\d{2})[^\n]*/i;
+  const DIV_RE     = /DIVISION\s+(\d{2})\b/i;
+  const divMap = {};
+  (pageTexts || []).forEach((text, i) => {
+    if (!text) return;
+    const page = i + 1;
+    const sm = text.match(SECTION_RE);
+    if (sm) {
+      const secNum  = sm[1].replace(/\s+/g, " ").trim();
+      const divNum  = secNum.slice(0, 2);
+      const titleM  = sm[0].match(/\d{2}\s+\d{2}\s+\d{2}\s*[-–—]?\s*(.+)/i);
+      const title   = titleM ? titleM[1].trim().slice(0, 60) : "";
+      const label   = title ? `${secNum} — ${title}` : secNum;
+      if (!divMap[divNum]) divMap[divNum] = [];
+      if (!divMap[divNum].some((x) => x.label.startsWith(secNum))) {
+        divMap[divNum].push({ label, page });
+      }
+      return;
+    }
+    const dm = text.match(DIV_RE);
+    if (dm) {
+      const divNum = dm[1].padStart(2, "0");
+      if (!divMap[divNum]) divMap[divNum] = [];
+      if (!divMap[divNum].some((x) => x.page === page)) {
+        divMap[divNum].push({ label: `Division ${divNum} start`, page });
+      }
+    }
+  });
+  if (Object.keys(divMap).length === 0) {
+    const groups = [];
+    for (let p = 1; p <= (numPages || 0); p += 20) {
+      const end = Math.min(p + 19, numPages || p);
+      groups.push({
+        key: `pages-${p}`,
+        label: `Pages ${p}–${end}`,
+        items: Array.from({ length: end - p + 1 }, (_, j) => ({ label: `Page ${p + j}`, page: p + j })),
+      });
+    }
+    return groups;
+  }
+  return Object.entries(divMap)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([divNum, items]) => ({
+      key: divNum,
+      label: `Division ${divNum} — ${CSI_DIVISION_NAMES[divNum] || "Other"}`,
+      items: items.sort((a, b) => a.page - b.page),
+    }));
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
