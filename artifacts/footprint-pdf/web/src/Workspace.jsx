@@ -8,6 +8,15 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 // ── Feature flag — set false to hide entire Document menu instantly ───────────
 const ENABLE_DOCUMENT_TOOLS = true;
 
+// ── Project color palette ─────────────────────────────────────────────────────
+const PROJECT_COLORS = ["#007BFF","#00C896","#FF6B35","#9B59B6","#F39C12","#E74C3C"];
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 // ── Session Memory (module-level, cleared when component mounts) ─────────────
 const _sessionMemory = [];
 const SESSION_MEMORY_MAX = 50;
@@ -739,9 +748,20 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // Project Links
   const [projectLinks,    setProjectLinks]    = useState([]); // [{url,addedAt}]
   const [linkInput,       setLinkInput]       = useState("");
+  // Tab right-click context menu
+  const [tabCtxMenu,      setTabCtxMenu]      = useState(null);
+  // null | { x, y, docId: null|string, submenu: null|"assign"|"move", newProj: bool, newProjName: string }
+
   // Active document derived values (activeDocId=null → primary doc from props)
   // NOTE: must appear AFTER extraDocs + activeDocId are declared above to avoid TDZ
   const activeDoc        = activeDocId ? (extraDocs.find(d => d.id === activeDocId) ?? null) : null;
+
+  // Returns the palette color for a project, by its insertion order in `projects`
+  const getProjectColor  = (projectId) => {
+    if (!projectId) return null;
+    const idx = projects.findIndex(p => p.id === projectId);
+    return idx >= 0 ? PROJECT_COLORS[idx % PROJECT_COLORS.length] : null;
+  };
   const activePageTexts  = activeDoc ? activeDoc.pageTexts  : pageTexts;
   const activePageTitles = activeDoc ? activeDoc.pageTitles : pageTitles;
   const activePageSheets = activeDoc ? activeDoc.pageSheets : pageSheets;
@@ -2257,6 +2277,42 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     setActiveDocId(prev => (prev === id ? null : prev));
   }, []);
 
+  // ── Tab context menu actions ───────────────────────────────────────────────
+  const tabCtxAssign = useCallback((docId, projectId) => {
+    if (docId === null) setPrimaryProjectId(projectId);
+    else setExtraDocs(prev => prev.map(d => d.id === docId ? { ...d, projectId } : d));
+    setTabCtxMenu(null);
+  }, []);
+
+  const tabCtxRemove = useCallback((docId) => {
+    if (docId === null) setPrimaryProjectId(null);
+    else setExtraDocs(prev => prev.map(d => d.id === docId ? { ...d, projectId: null } : d));
+    setTabCtxMenu(null);
+  }, []);
+
+  const tabCtxCreateProject = useCallback((docId, name) => {
+    const newId   = `proj-${Date.now()}`;
+    const projName = name.trim() || "Untitled Project";
+    setProjects(prev => [...prev, { id: newId, name: projName }]);
+    if (docId === null) setPrimaryProjectId(newId);
+    else setExtraDocs(prev => prev.map(d => d.id === docId ? { ...d, projectId: newId } : d));
+    setTabCtxMenu(null);
+  }, []);
+
+  const tabCtxClose = useCallback((docId) => {
+    if (docId === null) onNewFile();
+    else removeExtraDoc(docId);
+    setTabCtxMenu(null);
+  }, [onNewFile, removeExtraDoc]);
+
+  // Close context menu on any outside click
+  useEffect(() => {
+    if (!tabCtxMenu) return;
+    const close = () => setTabCtxMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [tabCtxMenu]);
+
   // Project Links handlers
   const addProjectLink = useCallback(() => {
     const url = linkInput.trim();
@@ -2600,34 +2656,134 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       {/* ── Tab Bar ── */}
       <div className="ws-tabbar">
         {/* Primary doc tab */}
-        <div
-          className={`ws-tab${!activeDocId ? " active" : ""}${primaryProjectId ? " ws-tab--project" : ""}`}
-          onClick={() => setActiveDocId(null)}
-          title={meta.filename}
-        >
-          {primaryProjectId && <span className="ws-tab-dot" />}
-          <span className="ws-tab-name">{meta.filename}</span>
-          {extraDocs.length === 0
-            ? <button className="ws-tab-close" onClick={(e) => { e.stopPropagation(); onNewFile(); }} title="Close document">×</button>
-            : null}
-        </div>
+        {(() => {
+          const color   = getProjectColor(primaryProjectId);
+          const isActive = !activeDocId;
+          return (
+            <div
+              className={`ws-tab${isActive ? " active" : ""}${primaryProjectId ? " ws-tab--project" : ""}`}
+              onClick={() => setActiveDocId(null)}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setTabCtxMenu({ x: e.clientX, y: e.clientY, docId: null, submenu: null, newProj: false, newProjName: "" }); }}
+              title={meta.filename}
+              style={color ? { borderTop: `3px solid ${isActive ? color : hexToRgba(color, 0.7)}` } : {}}
+            >
+              {primaryProjectId && <span className="ws-tab-dot" style={{ background: color || undefined }} />}
+              <span className="ws-tab-name">{meta.filename}</span>
+              {extraDocs.length === 0
+                ? <button className="ws-tab-close" onClick={(e) => { e.stopPropagation(); onNewFile(); }} title="Close document">×</button>
+                : null}
+            </div>
+          );
+        })()}
         {/* Extra doc tabs */}
         {extraDocs.map((doc) => {
-          const proj = projects.find(p => p.id === doc.projectId);
+          const proj    = projects.find(p => p.id === doc.projectId);
+          const color   = getProjectColor(doc.projectId);
+          const isActive = activeDocId === doc.id;
           return (
             <div
               key={doc.id}
-              className={`ws-tab${activeDocId === doc.id ? " active" : ""}${doc.projectId ? " ws-tab--project" : ""}`}
+              className={`ws-tab${isActive ? " active" : ""}${doc.projectId ? " ws-tab--project" : ""}`}
               onClick={() => setActiveDocId(doc.id)}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setTabCtxMenu({ x: e.clientX, y: e.clientY, docId: doc.id, submenu: null, newProj: false, newProjName: "" }); }}
               title={`${doc.name}${proj ? ` · ${proj.name}` : ""}`}
+              style={color ? { borderTop: `3px solid ${isActive ? color : hexToRgba(color, 0.7)}` } : {}}
             >
-              {doc.projectId && <span className="ws-tab-dot" />}
+              {doc.projectId && <span className="ws-tab-dot" style={{ background: color || undefined }} />}
               <span className="ws-tab-name">{doc.name}</span>
               <button className="ws-tab-close" onClick={(e) => { e.stopPropagation(); removeExtraDoc(doc.id); }} title="Close">×</button>
             </div>
           );
         })}
       </div>
+
+      {/* ── Tab right-click context menu ── */}
+      {tabCtxMenu && (() => {
+        const { docId, submenu, newProj, newProjName, x, y } = tabCtxMenu;
+        const docProjectId = docId === null ? primaryProjectId : extraDocs.find(d => d.id === docId)?.projectId ?? null;
+        const proj = docProjectId ? projects.find(p => p.id === docProjectId) : null;
+        const otherProjects = projects.filter(p => p.id !== docProjectId);
+
+        return (
+          <div
+            className="tab-ctx-menu"
+            style={{ top: y, left: x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {newProj ? (
+              <div className="tab-ctx-input-row">
+                <span className="tab-ctx-label">New project name</span>
+                <input
+                  autoFocus
+                  className="ws-modal-input"
+                  style={{ fontSize: 12, padding: "4px 8px" }}
+                  value={newProjName}
+                  placeholder="e.g. Wimbish Gym Addition"
+                  onChange={(e) => setTabCtxMenu(m => ({ ...m, newProjName: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") tabCtxCreateProject(docId, newProjName);
+                    if (e.key === "Escape") setTabCtxMenu(null);
+                  }}
+                />
+                <button
+                  className="ws-settings-save"
+                  style={{ fontSize: 11, padding: "4px 10px" }}
+                  onClick={() => tabCtxCreateProject(docId, newProjName)}
+                >Create</button>
+              </div>
+            ) : submenu === "assign" || submenu === "move" ? (
+              <>
+                <div className="tab-ctx-back" onClick={() => setTabCtxMenu(m => ({ ...m, submenu: null }))}>
+                  ← Back
+                </div>
+                <div className="tab-ctx-sep" />
+                {(submenu === "assign" ? projects : otherProjects).map(p => {
+                  const c = getProjectColor(p.id);
+                  return (
+                    <div key={p.id} className="tab-ctx-item" onClick={() => tabCtxAssign(docId, p.id)}>
+                      {c && <span className="tab-ctx-color-dot" style={{ background: c }} />}
+                      {p.name}
+                    </div>
+                  );
+                })}
+                {(submenu === "assign" ? projects : otherProjects).length === 0 && (
+                  <div className="tab-ctx-item tab-ctx-item--muted">No other projects</div>
+                )}
+              </>
+            ) : (
+              <>
+                {docProjectId ? (
+                  <>
+                    <div className="tab-ctx-item tab-ctx-item--danger" onClick={() => tabCtxRemove(docId)}>
+                      Remove from &ldquo;{proj?.name ?? "project"}&rdquo;
+                    </div>
+                    {otherProjects.length > 0 && (
+                      <div className="tab-ctx-item" onClick={() => setTabCtxMenu(m => ({ ...m, submenu: "move" }))}>
+                        Move to different project… <span className="tab-ctx-arrow">›</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {projects.length > 0 && (
+                      <div className="tab-ctx-item" onClick={() => setTabCtxMenu(m => ({ ...m, submenu: "assign" }))}>
+                        Assign to project… <span className="tab-ctx-arrow">›</span>
+                      </div>
+                    )}
+                    <div className="tab-ctx-item" onClick={() => setTabCtxMenu(m => ({ ...m, newProj: true }))}>
+                      Create new project with this document
+                    </div>
+                  </>
+                )}
+                <div className="tab-ctx-sep" />
+                <div className="tab-ctx-item tab-ctx-item--danger" onClick={() => tabCtxClose(docId)}>
+                  Close document
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Body ── */}
       <div className="ws-body">
@@ -3081,7 +3237,13 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                     </div>
                     {/* Project name */}
                     <div className="ws-settings-field">
-                      <div className="ws-settings-field-label">Project Name</div>
+                      <div className="ws-settings-field-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {primaryProjectId && (() => {
+                          const c = getProjectColor(primaryProjectId);
+                          return c ? <span style={{ width: 8, height: 8, borderRadius: "50%", background: c, flexShrink: 0, display: "inline-block" }} /> : null;
+                        })()}
+                        Project Name
+                      </div>
                       <input
                         className="ws-modal-input"
                         style={{ fontSize: 12, padding: "5px 8px" }}
@@ -3108,13 +3270,17 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                         <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginLeft: 6 }}>{meta.filename}</span>
                       </div>
                       {/* Extra tabs */}
-                      {extraDocs.map((d) => (
-                        <div key={d.id} className="ws-settings-file-item">
-                          <span className="ws-settings-file-tab">Tab</span>
-                          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginLeft: 6 }}>{d.name}</span>
-                          <button className="ws-settings-file-remove" onClick={() => removeExtraDoc(d.id)} title="Remove">×</button>
-                        </div>
-                      ))}
+                      {extraDocs.map((d) => {
+                        const c = getProjectColor(d.projectId);
+                        return (
+                          <div key={d.id} className="ws-settings-file-item">
+                            <span className="ws-settings-file-tab" style={c ? { borderLeft: `3px solid ${c}`, paddingLeft: 4 } : {}}>Tab</span>
+                            {c && <span style={{ width: 6, height: 6, borderRadius: "50%", background: c, flexShrink: 0 }} />}
+                            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginLeft: 4 }}>{d.name}</span>
+                            <button className="ws-settings-file-remove" onClick={() => removeExtraDoc(d.id)} title="Remove">×</button>
+                          </div>
+                        );
+                      })}
                       {/* Context files */}
                       {contextFiles.map((f) => (
                         <div key={f.name} className="ws-settings-file-item">
