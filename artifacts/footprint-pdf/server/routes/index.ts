@@ -5,6 +5,7 @@ import summarizeRouter from "./summarize.js";
 import onboardRouter from "./onboard.js";
 import feedbackRouter from "./feedback.js";
 import bugReportRouter from "./bug-report.js";
+import sampleRouter from "./sample.js";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(summarizeRouter);
 router.use(onboardRouter);
 router.use(feedbackRouter);
 router.use(bugReportRouter);
+router.use(sampleRouter);
 
 export default router;

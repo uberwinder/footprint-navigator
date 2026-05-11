@@ -359,15 +359,17 @@ export default function App() {
   }, [combineFiles, combineName, uploadFile]);
 
   // ── Sample project loader ─────────────────────────────────────────────────────
-  const SAMPLE_DRAWINGS_URL = "https://pub-2ad499c25d274381bf49e0399161212e.r2.dev/CSP_26-77_Wimbish_WLA_Gym_Addition___Renovations-Drawings.pdf";
-  const SAMPLE_SPECS_URL    = "https://pub-2ad499c25d274381bf49e0399161212e.r2.dev/CSP_26-77_Wimbish_WLA_Gym_Addition___Renovations_-Specifications.pdf";
+  // Fetch via Express proxy (/pdf-api/sample/*) to avoid R2 CORS restrictions.
+  const [sampleError, setSampleError] = useState(null);
 
   const loadSampleProject = useCallback(async () => {
     setSampleLoading("loading");
+    setSampleError(null);
     try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
       const [drawingsBlob, specsBlob] = await Promise.all([
-        fetch(SAMPLE_DRAWINGS_URL).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); }),
-        fetch(SAMPLE_SPECS_URL).then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); }),
+        fetch(`${base}/pdf-api/sample/drawings`).then((r) => { if (!r.ok) throw new Error(`Server error ${r.status} fetching drawings`); return r.blob(); }),
+        fetch(`${base}/pdf-api/sample/specs`).then((r)    => { if (!r.ok) throw new Error(`Server error ${r.status} fetching specs`);    return r.blob(); }),
       ]);
       const drawingsFile = new File([drawingsBlob], "Wimbish_Gym_Addition_Drawings.pdf", { type: "application/pdf" });
       const specsFile    = new File([specsBlob],    "Wimbish_Gym_Addition_Specifications.pdf", { type: "application/pdf" });
@@ -377,9 +379,10 @@ export default function App() {
       setExtraFilesAsSameProject(true);
       setPendingProjectName("Sample");
       uploadFile(drawingsFile);
-    } catch {
+    } catch (err) {
       setSampleLoading(null);
-      setError("Could not load sample project. Please try again.");
+      const msg = err instanceof Error ? err.message : "Network error";
+      setSampleError(msg);
     }
   }, [uploadFile]);
 
@@ -673,6 +676,9 @@ export default function App() {
                     <p className="sample-fetch-hint">
                       Loading sample project — fetching both documents simultaneously. The drawings set is 151 MB so this may take a moment…
                     </p>
+                  )}
+                  {sampleError && (
+                    <p className="sample-fetch-error">Error: {sampleError}</p>
                   )}
                 </div>
               </div>
