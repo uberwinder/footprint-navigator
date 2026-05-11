@@ -664,7 +664,7 @@ export default function App() {
             </section>
             <div className="sample-link-row">
               <button type="button" className="sample-link" onClick={() => setShowSampleModal(true)}>
-                Don't have a PDF handy? Try our sample construction documents →
+                Don't have construction documents handy?{" "}<span className="sample-link-cta">Try our sample documents →</span>
               </button>
             </div>
           </main>
