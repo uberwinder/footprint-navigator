@@ -111,7 +111,7 @@ button { font-family: inherit; }
   color: #3395ff;
   text-decoration: underline; text-underline-offset: 3px;
 }
-.sample-link-cta { color: inherit; }
+.sample-link-cta { color: inherit; font-size: 2em; font-weight: 700; font-variant: small-caps; }
 
 .sample-modal-overlay {
   position: fixed; inset: 0; z-index: 900;
