@@ -102,7 +102,7 @@ button { font-family: inherit; }
   margin-bottom: 20px;
 }
 .demo-cta-btn {
-  padding: 14px 36px; font-size: 16px; font-weight: 700;
+  padding: 14px 36px; font-size: 32px; font-weight: 700; font-variant: small-caps;
   background: #007BFF; color: #fff; border: none; border-radius: 8px;
   cursor: pointer; transition: background .15s, opacity .15s;
 }
