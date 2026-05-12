@@ -101,18 +101,25 @@ button { font-family: inherit; }
   margin-top: 16px; padding-bottom: 32px;
 }
 .sample-link {
-  background: transparent; border: none; cursor: pointer;
-  font-size: 1em; color: #007BFF; font-family: inherit;
+  font-size: 1rem;
   font-variant: small-caps;
-  text-decoration: none;
-  transition: color .15s, text-decoration-color .15s;
+  font-weight: normal;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #007BFF;
   padding: 0;
 }
 .sample-link:hover {
   color: #3395ff;
   text-decoration: underline; text-underline-offset: 3px;
 }
-.sample-link-cta { color: inherit; font-size: 2em; font-variant: small-caps; }
+.sample-link-cta {
+  font-size: 1rem;
+  font-variant: small-caps;
+  font-weight: normal;
+  color: inherit;
+}
 
 .sample-modal-overlay {
   position: fixed; inset: 0; z-index: 900;
