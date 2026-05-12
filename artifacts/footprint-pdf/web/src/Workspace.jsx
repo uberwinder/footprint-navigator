@@ -4598,10 +4598,14 @@ function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename, docT
   );
 }
 
+let thumbRenderCount = 0;
+const MAX_THUMB_RENDERS = 3;
+
 function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename, docType }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rendered     = useRef(false);
+  const renderTaskRef = useRef(null);
 
   const storageKey = `footprint-label-${filename}-${pageNum}`;
 
@@ -4620,14 +4624,39 @@ function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename, docType 
         if (!entry.isIntersecting || rendered.current) return;
         rendered.current = true;
         observer.disconnect();
+
+        // Cancel any stale render task for this slot before acquiring a new one
+        if (renderTaskRef.current) {
+          renderTaskRef.current.cancel();
+          renderTaskRef.current = null;
+        }
+
+        // Semaphore: wait until a render slot is free (max 3 concurrent)
+        while (thumbRenderCount >= MAX_THUMB_RENDERS) {
+          await new Promise((r) => setTimeout(r, 100));
+          if (!canvasRef.current) return; // unmounted while waiting
+        }
+        thumbRenderCount++;
+
         try {
           const page = await pdfDoc.getPage(pageNum);
           if (!canvasRef.current) return;
+
           const viewport = page.getViewport({ scale: 0.18 });
           const canvas = canvasRef.current;
+
+          // Stamp the canvas with its intended page before any async work
+          canvas.dataset.targetPage = pageNum;
           canvas.width  = Math.floor(viewport.width);
           canvas.height = Math.floor(viewport.height);
-          await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+
+          const renderTask = page.render({ canvasContext: canvas.getContext("2d"), viewport });
+          renderTaskRef.current = renderTask;
+          await renderTask.promise;
+          renderTaskRef.current = null;
+
+          // Guard: if canvas was reassigned to a different page during render, bail
+          if (canvas.dataset.targetPage !== String(pageNum)) return;
 
           // Detect sheet number after canvas render — skip for spec/manual documents
           if (docType !== "spec") {
@@ -4636,12 +4665,20 @@ function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename, docType 
             const sheet = extractSheetNumber(textContent.items, fullVp, pageNum);
             if (sheet) setDetectedSheet(sheet);
           }
-        } catch { /* ignore cancelled renders */ }
+        } catch { /* ignore cancelled renders */ } finally {
+          thumbRenderCount = Math.max(0, thumbRenderCount - 1);
+        }
       },
       { rootMargin: "150px" }
     );
     observer.observe(containerRef.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+    };
   }, [pdfDoc, pageNum]);
 
   // Re-run sheet detection when docType corrects from "spec" → "drawings" after render
