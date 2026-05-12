@@ -1000,6 +1000,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const canvasRef           = useRef(null);
   const canvasWrapRef       = useRef(null);
   const canvasColRef        = useRef(null);
+  const continuousViewerRef = useRef(null);
   const renderTaskRef       = useRef(null);
   const menuBarRef          = useRef(null);
   const fileInputRef        = useRef(null);
@@ -3005,6 +3006,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                     pageTexts={activePageTexts}
                     numPages={activeNumPages}
                     jumpToPage={jumpToPage}
+                    preloadPage={(n) => continuousViewerRef.current?.preloadPage(n)}
                     docType={activeDocType}
                   />
                 )}
@@ -3071,6 +3073,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
           {viewMode === "continuous" && pdfDoc ? (
             <ContinuousViewer
+              ref={continuousViewerRef}
               pdfDoc={pdfDoc}
               numPages={numPages || meta.pages}
               scale={scale ?? 1}
@@ -4430,7 +4433,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
 // ── Sub-Components ────────────────────────────────────────────────────────────
 
-function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, docType }) {
+function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, preloadPage, docType }) {
   const buildGroups = () =>
     docType === "spec"
       ? buildSpecBookmarks(pageTexts, numPages)
@@ -4527,6 +4530,7 @@ function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, docType }
                       key={idx}
                       className="ws-bm-item"
                       onClick={() => { if (!isEditingThis) jumpToPage(item.page); }}
+                      onMouseEnter={() => preloadPage?.(item.page)}
                       title={`Go to page ${item.page}`}
                     >
                       {isEditingThis ? (

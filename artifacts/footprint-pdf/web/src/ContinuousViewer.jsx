@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 const MAX_RENDERED  = 8;
 const CONCURRENCY   = 2;
@@ -6,7 +6,10 @@ const PAGE_GAP      = 12;   // px between pages
 const OBS_MARGIN    = "400px";
 const SMOOTH_DELAY  = 700;  // ms to hold programmaticRef after smooth scroll
 
-export default function ContinuousViewer({ pdfDoc, numPages, scale, pageNum, setPageNum }) {
+const ContinuousViewer = forwardRef(function ContinuousViewer(
+  { pdfDoc, numPages, scale, pageNum, setPageNum },
+  ref
+) {
   const containerRef      = useRef(null);
   const pageInfoRef       = useRef([]);     // [{ wrapEl, canvasEl, height, rendered }]
   const cumulativeRef     = useRef([0]);    // cumulative scroll offsets (length numPages+1)
@@ -224,6 +227,19 @@ export default function ContinuousViewer({ pdfDoc, numPages, scale, pageNum, set
     // If this change came from our own scroll listener, skip (avoid feedback loop)
     if (lastInternalPgRef.current === pageNum) { lastInternalPgRef.current = null; return; }
 
+    // Priority-render target ±1 pages before scrolling so canvases are
+    // already painted when the smooth-scroll animation arrives (~300ms).
+    const burst = [pageNum - 1, pageNum, pageNum + 1]
+      .filter((p) => p >= 1 && p <= numPages)
+      .filter((p) => {
+        const info = pageInfoRef.current[p - 1];
+        return info && !info.rendered && !renderingRef.current.has(p);
+      });
+    if (burst.length) {
+      renderQueueRef.current = burst; // replace queue; in-flight renders finish normally
+      processQFnRef.current?.();
+    }
+
     const offset = cumulativeRef.current[pageNum - 1] ?? 0;
     programmaticRef.current = true;
     containerRef.current.scrollTo({ top: offset, behavior: "smooth" });
@@ -239,6 +255,19 @@ export default function ContinuousViewer({ pdfDoc, numPages, scale, pageNum, set
     if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
     if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
   }, [cancelAll]);
+
+  // ── Imperative API (for hover pre-rendering from parent) ────────────────────
+
+  useImperativeHandle(ref, () => ({
+    preloadPage(pg) {
+      const info = pageInfoRef.current[pg - 1];
+      if (!info || info.rendered || renderingRef.current.has(pg)) return;
+      if (!renderQueueRef.current.includes(pg)) {
+        renderQueueRef.current.unshift(pg); // front of queue — highest priority
+      }
+      processQFnRef.current?.();
+    },
+  }), []);
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -276,4 +305,6 @@ export default function ContinuousViewer({ pdfDoc, numPages, scale, pageNum, set
       </div>
     </div>
   );
-}
+});
+
+export default ContinuousViewer;
