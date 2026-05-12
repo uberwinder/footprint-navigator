@@ -102,7 +102,8 @@ button { font-family: inherit; }
 }
 .sample-link {
   background: transparent; border: none; cursor: pointer;
-  font-size: 12px; color: #007BFF; font-family: inherit;
+  font-size: 2em; color: #007BFF; font-family: inherit;
+  font-variant: small-caps;
   text-decoration: none;
   transition: color .15s, text-decoration-color .15s;
   padding: 0;
@@ -111,7 +112,7 @@ button { font-family: inherit; }
   color: #3395ff;
   text-decoration: underline; text-underline-offset: 3px;
 }
-.sample-link-cta { color: inherit; font-size: 2em; font-weight: 700; font-variant: small-caps; }
+.sample-link-cta { color: inherit; font-size: 2em; font-variant: small-caps; }
 
 .sample-modal-overlay {
   position: fixed; inset: 0; z-index: 900;
