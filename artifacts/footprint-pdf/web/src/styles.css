@@ -102,7 +102,7 @@ button { font-family: inherit; }
 }
 .sample-link {
   background: transparent; border: none; cursor: pointer;
-  font-size: 2em; color: #007BFF; font-family: inherit;
+  font-size: 1em; color: #007BFF; font-family: inherit;
   font-variant: small-caps;
   text-decoration: none;
   transition: color .15s, text-decoration-color .15s;
