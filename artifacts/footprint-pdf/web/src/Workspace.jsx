@@ -803,7 +803,7 @@ function renderMarkdownWithLinks(text, sheetMap, onJump) {
 
 // ── Workspace ────────────────────────────────────────────────────────────────
 
-export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject, pendingProjectName }) {
+export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject, pendingProjectName, isSampleProject = false, onShowFeedback }) {
   // PDF
   const [pdfDoc,   setPdfDoc]   = useState(null);
   const [numPages, setNumPages] = useState(meta.pages || 0);
@@ -831,6 +831,13 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
   // Chat
   const [chatOpen,     setChatOpen]     = useState(false);
+  const [chatOpened,   setChatOpened]   = useState(() => { try { return localStorage.getItem("chatOpened") === "true"; } catch { return false; } });
+  useEffect(() => {
+    if (chatOpen && !chatOpened) {
+      setChatOpened(true);
+      try { localStorage.setItem("chatOpened", "true"); } catch {}
+    }
+  }, [chatOpen, chatOpened]);
   const [chatHeight,   setChatHeight]   = useState(400);
   const [chatInput,    setChatInput]    = useState("");
   const [chatMessages, setChatMessages] = useState(() => {
@@ -994,6 +1001,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // View history — stored in refs to avoid re-renders on push
   const viewHistRef    = useRef({ history: [{ page: 1, scale: null, panX: 0, panY: 0 }] });
   const viewHistIdxRef = useRef(0);
+  const [navHistTick, setNavHistTick] = useState(0);
   const isNavHistRef   = useRef(false);
 
   // Refs
@@ -1192,6 +1200,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     vh.history.push(newState);
     if (vh.history.length > 50) vh.history.shift();
     else viewHistIdxRef.current++;
+    setNavHistTick((t) => t + 1);
   }, [pageNum, scale]);
 
   // Re-render on changes (scale !== null guards against running before init)
@@ -1303,6 +1312,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     viewHistIdxRef.current--;
     const state = vh.history[viewHistIdxRef.current];
     isNavHistRef.current = true;
+    setNavHistTick((t) => t + 1);
     setPageNum(state.page);
     if (state.scale !== null) setScale(state.scale);
     requestAnimationFrame(() => {
@@ -1320,6 +1330,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     viewHistIdxRef.current++;
     const state = vh.history[viewHistIdxRef.current];
     isNavHistRef.current = true;
+    setNavHistTick((t) => t + 1);
     setPageNum(state.page);
     if (state.scale !== null) setScale(state.scale);
     requestAnimationFrame(() => {
@@ -1457,10 +1468,11 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       if (ctrl && k === "End")  { e.preventDefault(); setPageNum(numPages || meta.pages); return; }
       if (ctrl && k === "ArrowLeft")  { e.preventDefault(); setPageNum((p) => Math.max(1, p - 1)); return; }
       if (ctrl && k === "ArrowRight") { e.preventDefault(); setPageNum((p) => Math.min(numPages || meta.pages, p + 1)); return; }
+      if (ctrl && k === "Enter") { e.preventDefault(); setChatOpen((v) => !v); return; }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [numPages, meta.pages, goBackView, goForwardView]);
+  }, [numPages, meta.pages, goBackView, goForwardView, setChatOpen]);
 
   // ── Menu Close on Outside Click ────────────────────────────────────────────
 
@@ -2681,6 +2693,9 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
       {/* ── Menu Bar ── */}
       <div className="ws-menubar" ref={menuBarRef}>
+        <button className="ws-navbtn" title="Back (Alt+Left)" onClick={goBackView} disabled={navHistTick >= 0 && viewHistIdxRef.current <= 0}>←</button>
+        <button className="ws-navbtn" title="Forward (Alt+Right)" onClick={goForwardView} disabled={navHistTick >= 0 && viewHistIdxRef.current >= viewHistRef.current.history.length - 1}>→</button>
+        <div className="ws-menubar-navsep" />
         {MENUS.map((menu) => (
           <div key={menu.id} className="ws-menu-wrap">
             <button
@@ -2744,6 +2759,9 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
             )}
           </div>
         ))}
+        {isSampleProject && (
+          <button className="ws-exit-demo" onClick={() => onShowFeedback?.()}>Exit Demo</button>
+        )}
       </div>
 
       {/* File inputs */}
@@ -3753,15 +3771,13 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
           </span>
           <div className="ws-btbar-sep" />
           <button
-            className={`ws-btbtn ws-chat-toggle ${chatOpen ? "ws-btbtn--active" : ""}`}
+            className={`ws-chat-toggle${chatOpen ? " ws-chat-toggle--open" : ""}${!chatOpened ? " ws-chat-toggle--pulse" : ""}`}
             onClick={() => setChatOpen((v) => !v)}
-            title={chatOpen ? "Close Navigator chat" : "Open Navigator chat"}
+            title={chatOpen ? "Close Navigator chat (Ctrl+Enter)" : "Open Navigator chat (Ctrl+Enter)"}
           >
-            💬{chatMessages.filter((m) => m.role === "user").length > 0 && (
-              <span style={{ marginLeft: 4 }}>
-                {chatMessages.filter((m) => m.role === "user").length}
-              </span>
-            )}
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </button>
         </div>
       </div>
@@ -3839,6 +3855,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                 ["Ctrl+Z",     "Previous View (Undo)"],
                 ["Ctrl+Y",     "Next View (Redo)"],
                 ["Ctrl+F",     "Find / Search"],
+                ["Ctrl+Enter", "Open / Close Chat Panel"],
                 ["F11",        "Full Screen"],
               ].map(([key, desc]) => (
                 <div key={key} className="ws-shortcut-row">

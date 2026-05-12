@@ -15,7 +15,8 @@ const FEATURES = [
     title: "Sheet and Thumbnail Panel",
     intro:
       "The left panel shows every page as a thumbnail. Navigator automatically reads each page title block and detects sheet numbers like A101, P201, E301. " +
-      "Blue means auto-detected, white means manually corrected, gray means not detected. Click any thumbnail to jump to that page instantly.",
+      "Blue means auto-detected, white means manually corrected, gray means not detected. Click any thumbnail to jump to that page instantly. " +
+      "Use the ← → Back and Forward buttons in the top left toolbar to move between pages you have already visited — just like a browser.",
   },
   {
     title: "Project Files",
@@ -35,7 +36,7 @@ const FEATURES = [
   {
     title: "Navigator AI Chat",
     intro:
-      "The chat panel in the bottom right is where the real power is. Ask Navigator anything about your document in plain language and it will find the answer and link directly to the page it came from.",
+      "The chat panel in the bottom right is where the real power is. Ask Navigator anything about your document in plain language and it will find the answer and link directly to the page it came from. Open and close the chat panel anytime with Ctrl+Enter, or click the pulsing blue button in the bottom right of the toolbar.",
   },
   {
     title: "What Is In Development",

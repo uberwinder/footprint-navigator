@@ -96,6 +96,30 @@ button { font-family: inherit; }
 .upload-hint { font-size: 12px !important; opacity: .7; margin-top: 2px !important; }
 
 /* ── Sample documents ───────────────────────────────────────────── */
+/* Demo CTA on upload screen */
+.demo-cta-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin-bottom: 20px;
+}
+.demo-cta-btn {
+  padding: 14px 36px; font-size: 16px; font-weight: 700;
+  background: #007BFF; color: #fff; border: none; border-radius: 8px;
+  cursor: pointer; transition: background .15s, opacity .15s;
+}
+.demo-cta-btn:hover:not(:disabled) { background: #0062cc; }
+.demo-cta-btn:disabled { opacity: .6; cursor: default; }
+.demo-cta-hint {
+  font-size: 13px; color: #888; margin: 0;
+}
+.upload-or-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 0 18px; color: #666; font-size: 13px;
+}
+.upload-or-divider::before,
+.upload-or-divider::after {
+  content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.1);
+}
+
 .sample-link-row {
   display: flex; justify-content: center;
   margin-top: 16px; padding-bottom: 32px;
@@ -459,6 +483,33 @@ button { font-family: inherit; }
 }
 
 /* ── Menu Bar ──────────────────────────────────────────────────── */
+/* Menu bar back/forward nav buttons */
+.ws-navbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 22px; padding: 0;
+  background: transparent; border: none; border-radius: 3px;
+  color: var(--text-dim); font-size: 14px; font-family: inherit; cursor: pointer;
+  transition: background .1s, color .1s;
+  flex-shrink: 0;
+}
+.ws-navbtn:hover:not(:disabled) { background: rgba(255,255,255,.09); color: var(--text); }
+.ws-navbtn:disabled { opacity: .3; cursor: default; }
+.ws-menubar-navsep {
+  width: 1px; height: 14px; background: var(--border);
+  margin: 0 4px; align-self: center; flex-shrink: 0;
+}
+
+/* Exit Demo button in menu bar */
+.ws-exit-demo {
+  margin-left: auto; margin-right: 6px;
+  padding: 2px 10px; height: 22px;
+  background: transparent; border: 1px solid rgba(255,255,255,.3); border-radius: 4px;
+  color: var(--text-dim); font-family: inherit; font-size: 12px; cursor: pointer;
+  transition: border-color .1s, color .1s;
+  white-space: nowrap;
+}
+.ws-exit-demo:hover { border-color: rgba(255,255,255,.6); color: var(--text); }
+
 .ws-menubar {
   display: flex; align-items: stretch;
   background: var(--bar);
@@ -1104,19 +1155,21 @@ button { font-family: inherit; }
 .ws-chat-send:hover { opacity: .85; }
 
 /* Chat toggle button in bottom toolbar */
+@keyframes chat-pulse {
+  0%   { border: 3px solid #007BFF; box-shadow: 0 0 8px #007BFF; }
+  50%  { border: 1.5px solid #007BFF; box-shadow: none; }
+  100% { border: 3px solid #007BFF; box-shadow: 0 0 8px #007BFF; }
+}
+
 .ws-chat-toggle {
-  display: inline-flex; align-items: center; gap: 5px;
-  height: 26px; padding: 0 10px;
-  background: transparent; border: 1px solid rgba(255,255,255,.15); border-radius: 4px;
-  color: var(--text-dim); font-family: inherit; font-size: 12px; cursor: pointer;
-  transition: background .1s, border-color .1s, color .1s;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex-shrink: 0;
+  background: #000; border: 3px solid #007BFF; border-radius: 8px;
+  color: #fff; cursor: pointer;
+  transition: opacity .1s;
 }
-.ws-chat-toggle:hover { background: rgba(255,255,255,.07); color: var(--text); }
-.ws-chat-toggle--open {
-  background: rgba(0,123,255,.18); border-color: rgba(0,123,255,.55);
-  color: var(--accent);
-}
+.ws-chat-toggle:hover { opacity: .85; }
+.ws-chat-toggle--pulse { animation: chat-pulse 2s ease-in-out infinite; }
 .ws-chat-toggle-icon { font-size: 13px; line-height: 1; }
 .ws-chat-toggle-label { display: flex; align-items: center; gap: 5px; }
 .ws-chat-toggle-badge {

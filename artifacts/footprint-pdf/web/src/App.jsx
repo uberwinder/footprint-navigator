@@ -121,6 +121,7 @@ export default function App() {
   // ── Sample documents modal ───────────────────────────────────────────────────
   const [showSampleModal, setShowSampleModal] = useState(false);
   const [sampleLoading,   setSampleLoading]   = useState(null);
+  const [isSampleProject, setIsSampleProject] = useState(false);
   const [sampleProgress,  setSampleProgress]  = useState({ drawings: 0, specs: 0 });
 
   const inputRef        = useRef(null);
@@ -158,7 +159,7 @@ export default function App() {
     setError(""); setUploadProgress(0); setUploadEta(null); setUploadDone(false);
     setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
     setPendingTabFiles([]); setExtraFilesAsSameProject(false); setPendingProjectName(null);
-    setSampleLoading(null); setSampleProgress({ drawings: 0, specs: 0 });
+    setSampleLoading(null); setSampleProgress({ drawings: 0, specs: 0 }); setIsSampleProject(false);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -376,6 +377,7 @@ export default function App() {
   const loadSampleProject = useCallback(() => {
     console.log("[sample] v2 - bypass active - no upload");
     setSampleLoading(true);
+    setIsSampleProject(true);
     setSampleError(null);
     setSampleProgress({ drawings: 0, specs: 0 });
 
@@ -722,6 +724,13 @@ export default function App() {
             </div>
           </header>
           <main className="main">
+            <div className="demo-cta-wrap">
+              <button type="button" className="demo-cta-btn" onClick={() => setShowSampleModal(true)}>
+                Try a Demo Project
+              </button>
+              <p className="demo-cta-hint">No document needed — loads a real construction project</p>
+            </div>
+            <div className="upload-or-divider"><span>or upload your own document</span></div>
             <section
               className="dropzone"
               onDrop={onDrop}
@@ -745,11 +754,6 @@ export default function App() {
               </div>
               {error && <p className="error">{error}</p>}
             </section>
-            <div className="sample-link-row">
-              <button type="button" className="sample-link" onClick={() => setShowSampleModal(true)}>
-                Don't have construction documents handy?{" "}<span className="sample-link-cta">Try our sample documents →</span>
-              </button>
-            </div>
           </main>
 
           {showSampleModal && (
@@ -874,6 +878,8 @@ export default function App() {
             pendingTabFiles={pendingTabFiles}
             extraFilesAsSameProject={extraFilesAsSameProject}
             pendingProjectName={pendingProjectName}
+            isSampleProject={isSampleProject}
+            onShowFeedback={() => setShowFeedback(true)}
           />
         </WorkspaceErrorBoundary>
       )}

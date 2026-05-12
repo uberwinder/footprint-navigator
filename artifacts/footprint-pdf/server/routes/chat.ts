@@ -29,7 +29,7 @@ UI LOCATIONS
 - Count tool: toolbar
 - Scale calibration: opens automatically when a measurement tool is activated without a scale set
 - Measurements panel: shows all measurements, export to CSV
-- Chat panel: bottom of screen — click the chat icon in the toolbar or use the View menu
+- Chat panel: bottom of screen — click the pulsing blue chat button in the bottom right of the toolbar, or use the View menu; keyboard shortcut Ctrl+Enter opens and closes it
 - Settings: gear icon inside the chat panel — open the chat panel first, then look for the gear icon
 - Split view vertical: Ctrl+2
 - Split view horizontal: Ctrl+H
@@ -43,6 +43,7 @@ UI LOCATIONS
 - Last page: Ctrl+End
 - Previous view: Alt+Left
 - Next view: Alt+Right
+- Back/Forward navigation: ← → buttons in the top left of the menu bar move between previously visited pages, like a browser back and forward button. Keyboard shortcuts: Alt+Left (back) and Alt+Right (forward).
 - Document menu: top menu bar
 - Project Files: Settings → Project Files section inside the chat panel
 - Project Links: Settings → Project Files → Project Links section below documents

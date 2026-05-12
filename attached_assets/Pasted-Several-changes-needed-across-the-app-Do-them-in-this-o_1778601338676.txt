@@ -1,0 +1,178 @@
+Several changes needed across the app. Do them 
+in this order:
+
+--- CHANGE 1: BACK/FORWARD BUTTONS IN TOP TOOLBAR ---
+
+Add two browser-style navigation buttons to the 
+top menu bar, positioned at the far left before 
+the File menu (or after it — wherever the red 
+mark was shown in the screenshot, top left area).
+
+- Left arrow ← button, tooltip: "Back (Alt+Left)"
+- Right arrow → button, tooltip: "Forward (Alt+Right)"
+- Wire to existing Alt+Left / Alt+Right view 
+  history logic — no new logic needed
+- Style: simple, clean, slightly smaller than 
+  menu items, visually distinct from the bottom 
+  toolbar page prev/next arrows
+- Disable/gray out Back when there is no view 
+  history behind current position
+- Disable/gray out Forward when there is no 
+  view history ahead
+- Bottom toolbar page arrows are unchanged
+
+--- CHANGE 2: CHAT BUTTON REDESIGN + PULSE ---
+
+Restyle the chat toggle button in the bottom 
+right toolbar:
+
+- Box outline: electric blue (#007BFF), always 
+  visible, rounded corners
+- Interior background: black (#000000)
+- Message/chat icon: white, keep existing icon
+- Size: increase to approximately 44px × 44px
+
+Pulse animation — border only, NOT scale:
+@keyframes chat-pulse {
+  0%   { border: 3px solid #007BFF; 
+          box-shadow: 0 0 8px #007BFF; }
+  50%  { border: 1.5px solid #007BFF; 
+          box-shadow: none; }
+  100% { border: 3px solid #007BFF; 
+          box-shadow: 0 0 8px #007BFF; }
+}
+animation: chat-pulse 2s ease-in-out infinite;
+
+Pulse behavior:
+- Pulse is active by default on first load
+- Stops permanently after user opens chat 
+  panel for the first time
+- Store "chatOpened" in localStorage so 
+  pulse does not restart on page refresh
+- Once stopped, button keeps the blue outline 
+  and black background but no animation
+
+--- CHANGE 3: CTRL+ENTER TO TOGGLE CHAT ---
+
+Add Ctrl+Enter as a global keyboard shortcut:
+- If chat panel is closed: open it
+- If chat panel is open: close it and return 
+  to normal viewer mode
+- Add to the existing keyboard shortcut handler 
+  in Workspace.jsx
+- Add to the keyboard shortcuts modal under 
+  a "Chat" section:
+  Ctrl+Enter — Open / Close Chat Panel
+
+--- CHANGE 4: SAMPLE PROJECT BUTTON MORE PROMINENT ---
+
+On the upload/empty state screen, make the 
+sample project option the primary visual CTA:
+
+- Move "Try Sample Project" or "Load Sample 
+  Project" above the upload area or make it 
+  equal prominence to the upload button
+- Label it clearly: "Try a Demo Project"
+- Style it as a full button in electric blue, 
+  not a small text link
+- Below it add small text: "No document needed 
+  — loads a real construction project"
+- The upload option stays but is visually 
+  secondary to the demo button
+
+--- CHANGE 5: EXIT DEMO BUTTON ---
+
+Add a clearly visible "Exit Demo" button 
+somewhere accessible in the app UI (top 
+toolbar or menu bar):
+
+- Label: "Exit Demo"
+- Clicking it immediately opens the existing 
+  feedback modal
+- Style: subtle, not competing with primary 
+  actions — outlined button, not filled
+- Only show this button when the sample 
+  project is loaded (not when user has 
+  uploaded their own document)
+
+--- CHANGE 6: ONBOARDING TOUR SPOTLIGHT ---
+
+When the onboarding bubble is active and 
+describing a feature, highlight the actual 
+UI element it is talking about:
+
+For each feature stop, define a CSS selector 
+or element ID for the target element:
+- Feature 1 (Thumbnails): target the left 
+  thumbnail panel
+- Feature 2 (Project Files): target the 
+  settings/project files area
+- Feature 3 (Search): target the search 
+  bar in the top toolbar
+- Feature 4 (Measurements): target the 
+  measurement tools in the toolbar
+- Feature 5 (Navigator AI Chat): target 
+  the chat button in the bottom toolbar
+- Feature 6 (Settings): target the settings 
+  gear icon
+
+For each active feature:
+1. Add a pulsing blue glow ring around the 
+   target element:
+   box-shadow: 0 0 0 3px #007BFF, 
+               0 0 12px #007BFF;
+   animation: pulse 1.5s ease-in-out infinite;
+2. Draw an SVG arrow from the bubble to the 
+   target element — position it absolutely, 
+   calculate start/end points from element 
+   bounding rects
+3. Reposition the bubble near the target 
+   element — above it, below it, or to the 
+   side depending on which quadrant it's in
+4. When user clicks "Got it", remove the 
+   glow and arrow, advance to next feature 
+   and highlight next target
+
+If calculating arrow positions is complex, 
+implement the glow ring first and skip the 
+arrow — the glow alone is valuable. The 
+arrow can be added later.
+
+--- CHANGE 7: SYSTEM PROMPT UPDATE ---
+
+In chat.ts, add to the UI locations section:
+
+- "Chat panel: open and close with Ctrl+Enter 
+  keyboard shortcut, or click the pulsing blue 
+  chat button in the bottom right of the toolbar"
+- "Back/Forward navigation: use the ← → buttons 
+  in the top left of the menu bar to move between 
+  previously visited pages, like a browser back 
+  and forward button. Keyboard shortcuts are 
+  Alt+Left (back) and Alt+Right (forward)."
+
+--- CHANGE 8: ONBOARDING TOUR TEXT UPDATES ---
+
+In WorkspaceOnboarding.jsx or onboard.ts, 
+find the feature stop for Navigator AI Chat 
+and add to its description:
+"Open and close the chat panel anytime with 
+Ctrl+Enter, or click the pulsing blue button 
+in the bottom right of the toolbar."
+
+Find the feature stop for navigation/viewer 
+and add:
+"Use the ← → Back and Forward buttons in the 
+top left toolbar to jump between pages you've 
+already visited — just like a browser."
+
+--- BUILD ORDER ---
+Do changes 1, 2, 3, 4, 5, 7, 8 first — 
+these are straightforward.
+Do change 6 (spotlight) last — it is the 
+most complex. Show the plan for change 6 
+before implementing it.
+
+Push changes 1-5, 7, 8 to GitHub now.
+Wait for approval on change 6 plan before 
+building it.
