@@ -747,6 +747,7 @@ export default function App() {
               </div>
               {error && <p className="error">{error}</p>}
             </section>
+            {/* sample link — below dropzone */}
             <div className="sample-link-row">
               <button type="button" className="sample-link" onClick={() => setShowSampleModal(true)}>
                 Don't have a document? <span className="sample-link-cta">Try our sample construction project →</span>
