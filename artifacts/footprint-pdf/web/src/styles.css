@@ -96,30 +96,6 @@ button { font-family: inherit; }
 .upload-hint { font-size: 12px !important; opacity: .7; margin-top: 2px !important; }
 
 /* ── Sample documents ───────────────────────────────────────────── */
-/* Demo CTA on upload screen */
-.demo-cta-wrap {
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  margin-bottom: 20px;
-}
-.demo-cta-btn {
-  padding: 14px 36px; font-size: 32px; font-weight: 700; font-variant: small-caps;
-  background: #007BFF; color: #fff; border: none; border-radius: 8px;
-  cursor: pointer; transition: background .15s, opacity .15s;
-}
-.demo-cta-btn:hover:not(:disabled) { background: #0062cc; }
-.demo-cta-btn:disabled { opacity: .6; cursor: default; }
-.demo-cta-hint {
-  font-size: 13px; color: #888; margin: 0;
-}
-.upload-or-divider {
-  display: flex; align-items: center; gap: 12px;
-  margin: 0 0 18px; color: #666; font-size: 13px;
-}
-.upload-or-divider::before,
-.upload-or-divider::after {
-  content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.1);
-}
-
 .sample-link-row {
   display: flex; justify-content: center;
   margin-top: 16px; padding-bottom: 32px;

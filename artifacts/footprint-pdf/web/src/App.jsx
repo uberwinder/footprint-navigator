@@ -724,13 +724,6 @@ export default function App() {
             </div>
           </header>
           <main className="main">
-            <div className="demo-cta-wrap">
-              <button type="button" className="demo-cta-btn" onClick={() => setShowSampleModal(true)}>
-                Try a Demo Project
-              </button>
-              <p className="demo-cta-hint">No document needed — loads a real construction project</p>
-            </div>
-            <div className="upload-or-divider"><span>or upload your own document</span></div>
             <section
               className="dropzone"
               onDrop={onDrop}
@@ -754,6 +747,11 @@ export default function App() {
               </div>
               {error && <p className="error">{error}</p>}
             </section>
+            <div className="sample-link-row">
+              <button type="button" className="sample-link" onClick={() => setShowSampleModal(true)}>
+                Don't have a document? <span className="sample-link-cta">Try our sample construction project →</span>
+              </button>
+            </div>
           </main>
 
           {showSampleModal && (
