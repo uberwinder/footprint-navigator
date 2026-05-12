@@ -11,8 +11,32 @@ const isProduction = process.env["NODE_ENV"] === "production";
 if (isProduction) {
   // dist/server/index.js -> dist/public
   const webDist = path.resolve(__dirname, "../public");
-  app.use(express.static(webDist));
+
+  // Hashed assets — cache forever (Vite content-hashes filenames on every rebuild)
+  app.use(
+    "/assets",
+    express.static(path.join(webDist, "assets"), {
+      maxAge: "1y",
+      immutable: true,
+    })
+  );
+
+  // Other static files (favicon, logo, etc.) — no cache, let catch-all handle index.html
+  app.use(
+    express.static(webDist, {
+      maxAge: 0,
+      etag: false,
+      lastModified: false,
+      index: false,
+    })
+  );
+
+  // SPA catch-all — always serve index.html with strict no-cache so browsers
+  // fetch the latest entry point and pick up new hashed asset filenames
   app.get(/^\/(?!pdf-api).*/, (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.sendFile(path.join(webDist, "index.html"));
   });
 }
