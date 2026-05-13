@@ -843,13 +843,15 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       setChatOpen(true);
       setSettingsOpen(true);
       setTourAction(null);
+      // Delay spotlight until settings panel is mounted in the DOM
+      setTimeout(() => handleTourSpotlight("#ws-settings-project-files"), 150);
     }
     if (tourAction === "close-chat") {
       setChatOpen(false);
       setSettingsOpen(false);
       setTourAction(null);
     }
-  }, [tourAction]);
+  }, [tourAction, handleTourSpotlight]);
   const [chatHeight,   setChatHeight]   = useState(400);
   const [chatInput,    setChatInput]    = useState("");
   const [chatMessages, setChatMessages] = useState(() => {

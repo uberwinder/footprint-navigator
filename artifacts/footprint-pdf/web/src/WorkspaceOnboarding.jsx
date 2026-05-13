@@ -127,7 +127,8 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
   // Set spotlight when a feature starts streaming; signal Workspace for Project Files stop
   useEffect(() => {
     if (phase !== "feature-intro") return;
-    onSpotlight?.(FEATURES[featureIndex].spotlight ?? null);
+    // Project Files (index 1): spotlight fires after settings panel mounts, handled by Workspace
+    if (featureIndex !== 1) onSpotlight?.(FEATURES[featureIndex].spotlight ?? null);
     if (featureIndex === 1) onTourAction?.("open-project-files");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, featureIndex]);
