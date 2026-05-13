@@ -431,6 +431,7 @@ export default function App() {
   const [sampleError, setSampleError] = useState(null);
 
   const loadSampleProject = useCallback(() => {
+    console.log("[sample] loadSampleProject started");
     console.log("[sample] v2 - bypass active - no upload");
     setSampleLoading(true);
     setIsSampleProject(true);
@@ -515,6 +516,7 @@ export default function App() {
       setPreviewDocs([drawingsEntry, specsEntry]);
       setPreviewProjectName("Sample");
       setPreviewExtraAsSameProject(true);
+      console.log("[sample] setting appState to preview");
       setAppState("preview");
 
       // ── Extract drawings with per-page progress ──────────────────────────────
@@ -580,6 +582,7 @@ export default function App() {
       pendingOcrRef.current = _avgChars < OCR_CHAR_THRESHOLD && pages > 0
         ? { file: drawingsFile, pages } : null;
     }).catch((err) => {
+      console.log("[sample] catch fired:", err);
       const msg = err instanceof Error ? err.message : "Network error";
       console.error("[sample] load failed:", msg);
       setSampleLoading(null);

@@ -34,6 +34,12 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        entryFileNames: "assets/[name]-[hash]-v2.js",
+        chunkFileNames: "assets/[name]-[hash]-v2.js",
+      },
+    },
   },
   optimizeDeps: {
     include: ["pdfjs-dist"],

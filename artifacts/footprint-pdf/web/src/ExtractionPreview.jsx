@@ -9,6 +9,7 @@ export default function ExtractionPreview({
   previewTourDone,
   onPreviewTourDone,
 }) {
+  console.log("[preview] ExtractionPreview mounted");
   const [activeTab, setActiveTab] = useState(0);
 
   const allDone     = docs.length > 0 && docs.every((d) => d.isDone);
