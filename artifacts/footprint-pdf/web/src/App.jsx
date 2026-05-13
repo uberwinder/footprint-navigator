@@ -750,7 +750,7 @@ export default function App() {
             {/* sample link — below dropzone */}
             <div className="sample-link-row">
               <button type="button" className="sample-link" onClick={() => setShowSampleModal(true)}>
-                Don't have a document? <span className="sample-link-cta">Try our sample construction project →</span>
+                Don't have construction documents handy? <span className="sample-link-cta">Try our sample project →</span>
               </button>
             </div>
           </main>
