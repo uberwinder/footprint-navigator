@@ -1,5 +1,48 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
+// ── Document type detection ───────────────────────────────────────────────────
+function detectDocType(doc) {
+  if (doc.pageSheets.some((s) => s && s.length > 0)) return "Drawings";
+  const name = doc.name.toLowerCase();
+  if (/spec|manual|division/.test(name)) return "Specifications";
+  const allText = doc.pageTexts.join(" ");
+  if (/\bSECTION\s+\d{2}\s+\d{2}|\bdivision\s+\d{2}|\bCSI\b/i.test(allText)) return "Specifications";
+  return "Unspecified";
+}
+
+// ── Typewriter hook ───────────────────────────────────────────────────────────
+function useTypewriter(text, charDelay = 13) {
+  const [displayed, setDisplayed] = useState("");
+  const [started,   setStarted]   = useState(false);
+
+  useEffect(() => {
+    if (!text) { setDisplayed(""); setStarted(false); return; }
+    setDisplayed(""); setStarted(false);
+    let cancelled = false;
+    let i = 0;
+    const startT = setTimeout(() => {
+      if (cancelled) return;
+      setStarted(true);
+      const tick = () => {
+        if (cancelled) return;
+        i++;
+        setDisplayed(text.slice(0, i));
+        if (i < text.length) setTimeout(tick, charDelay);
+      };
+      setTimeout(tick, charDelay);
+    }, 480);
+    return () => { cancelled = true; clearTimeout(startT); };
+  }, [text]);
+
+  return { displayed, started, done: displayed.length >= text.length };
+}
+
+const TOUR_TEXT =
+  "This is the document preview screen. Confirm your documents were read correctly, " +
+  "check detected sheet numbers, and preview the extracted text. When everything " +
+  "looks good, click Open in Navigator to begin.";
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function ExtractionPreview({
   docs,
   projectName,
@@ -12,7 +55,11 @@ export default function ExtractionPreview({
   console.log("[preview] ExtractionPreview mounted");
   const [activeTab, setActiveTab] = useState(0);
 
-  const allDone     = docs.length > 0 && docs.every((d) => d.isDone);
+  const showBubble = !onboardDone && !previewTourDone;
+  const { displayed: tourDisplayed, started: tourStarted, done: tourDone } =
+    useTypewriter(showBubble ? TOUR_TEXT : "");
+
+  const allDone      = docs.length > 0 && docs.every((d) => d.isDone);
   const isExtracting = !allDone;
 
   const totalPages = docs.reduce((s, d) => s + (d.pages || 0), 0);
@@ -27,20 +74,22 @@ export default function ExtractionPreview({
         .filter(Boolean)
     : [];
 
-  const textSample = doc ? (doc.pageTexts[0] || "").slice(0, 400) : "";
+  // Full text with page breaks — updates progressively as pageTexts grows
+  const fullText = doc
+    ? doc.pageTexts
+        .map((t, i) => {
+          const header = `--- Page ${i + 1} ---`;
+          const body   = t && t.trim() ? t.trim() : "(no text extracted)";
+          return `${header}\n${body}`;
+        })
+        .join("\n\n")
+    : "";
 
-  const statusBadge = (d) => {
-    if (!d.isDone)                                  return { label: "Extracting…", cls: "ep-badge--gray"   };
-    const hasSheets = d.pageSheets.some((s) => s && s.length > 0);
-    const hasText   = d.pageTexts.some((t)  => t && t.length  > 10);
-    if (!hasText)                                   return { label: "Check",       cls: "ep-badge--red"    };
-    if (!hasSheets)                                 return { label: "Review",      cls: "ep-badge--yellow" };
-    return                                                 { label: "Ready",       cls: "ep-badge--green"  };
-  };
+  const docType = doc && doc.isDone ? detectDocType(doc) : null;
 
   return (
     <div className="ep-root">
-      {/* ── Header — same branding as the rest of the app ── */}
+      {/* ── Header ── */}
       <header className="header">
         <div className="brand">
           <img src="./footprint-logo.png" alt="Footprint Navigator logo" className="logo-img" />
@@ -57,11 +106,11 @@ export default function ExtractionPreview({
 
           {/* Title + progress */}
           <div className="ep-title-row">
-            <h2 className="ep-title">Reviewing Your Documents</h2>
+            <h2 className="ep-title">Previewing Your Documents</h2>
             <p className="ep-subtitle">
               {isExtracting
                 ? `Extracting text… page ${donePages} of ${totalPages}`
-                : "Extraction complete — everything looks good. Review below and click Open in Navigator when ready."}
+                : "Extraction complete — preview below and click Open in Navigator when ready."}
             </p>
             {isExtracting && (
               <div className="ep-progress-bar">
@@ -70,7 +119,7 @@ export default function ExtractionPreview({
             )}
           </div>
 
-          {/* Document tabs — only shown if multiple docs */}
+          {/* Document tabs — only when multiple docs */}
           {docs.length > 1 && (
             <div className="ep-tabs">
               {docs.map((d, i) => (
@@ -89,17 +138,17 @@ export default function ExtractionPreview({
           {doc && (
             <div className="ep-doc-content">
 
-              {/* Doc header + status badge */}
+              {/* Doc header */}
               <div className="ep-doc-header">
                 <div>
                   <div className="ep-doc-name">{doc.name}</div>
                   <div className="ep-doc-pages">
                     {doc.pages > 0 ? `${doc.pages} pages` : "Counting pages…"}
                   </div>
+                  {docType && (
+                    <div className="ep-doc-type">Document Type: {docType}</div>
+                  )}
                 </div>
-                <span className={`ep-badge ${statusBadge(doc).cls}`}>
-                  {statusBadge(doc).label}
-                </span>
               </div>
 
               {/* Detected Sheets */}
@@ -110,7 +159,7 @@ export default function ExtractionPreview({
                     <span className="ep-sheet-count">{sheetsDetected.length} detected</span>
                   )}
                 </div>
-                {!doc.isDone ? (
+                {!doc.isDone && doc.pageTexts.length === 0 ? (
                   <p className="ep-section-empty">Extracting…</p>
                 ) : sheetsDetected.length === 0 ? (
                   <p className="ep-section-empty">No sheet numbers detected</p>
@@ -126,23 +175,23 @@ export default function ExtractionPreview({
                 )}
               </div>
 
-              {/* Extracted text sample */}
+              {/* Full extracted text — progressive */}
               <div className="ep-section">
-                <div className="ep-section-title">Extracted Text Sample (Page 1)</div>
-                <div className="ep-text-sample">
-                  {!doc.isDone ? (
-                    <span className="ep-section-empty">Extracting…</span>
-                  ) : textSample ? (
-                    textSample
+                <div className="ep-section-title">Extracted Text</div>
+                <div className="ep-text-full">
+                  {doc.pageTexts.length === 0 ? (
+                    <p className="ep-section-empty" style={{ padding: "12px 14px", margin: 0 }}>
+                      Extracting…
+                    </p>
                   ) : (
-                    <span className="ep-section-empty">No text extracted from this page</span>
+                    <pre className="ep-text-pre">{fullText}</pre>
                   )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Project name — only for multi-doc */}
+          {/* Project name — multi-doc only */}
           {docs.length > 1 && (
             <div className="ep-project-name-wrap">
               <label className="ep-project-label">Project Name</label>
@@ -171,19 +220,32 @@ export default function ExtractionPreview({
         </div>
       </main>
 
-      {/* ── Tour bubble (shown once, first time) ── */}
-      {!onboardDone && !previewTourDone && (
-        <div className="ep-tour-bubble">
-          <div className="ep-tour-header">
-            <span className="wob-logo">Navigator</span>
+      {/* ── Tour bubble — wob-card style + typewriter ── */}
+      {showBubble && (
+        <div className="wob-card ep-tour-card">
+          <div className="wob-header">
+            <div className="wob-header-left">
+              <span className="wob-logo">Navigator</span>
+              <span className="wob-badge">Preview Screen</span>
+            </div>
           </div>
-          <p className="ep-tour-text">
-            This is the document review screen. Here you can confirm your documents uploaded
-            correctly, check detected sheet numbers, and preview extracted text. When everything
-            looks good, click <strong>Open in Navigator</strong> to begin.
-          </p>
-          <div className="ep-tour-actions">
-            <button className="wob-btn wob-btn--primary" onClick={onPreviewTourDone}>
+          <div className="wob-body">
+            {!tourStarted ? (
+              <div className="wob-typing-wrap">
+                <div className="wob-typing">
+                  <span /><span /><span />
+                </div>
+              </div>
+            ) : (
+              <p className="wob-text">{tourDisplayed}</p>
+            )}
+          </div>
+          <div className="wob-actions">
+            <button
+              className="wob-btn wob-btn--primary"
+              onClick={onPreviewTourDone}
+              disabled={!tourDone}
+            >
               Got it
             </button>
           </div>

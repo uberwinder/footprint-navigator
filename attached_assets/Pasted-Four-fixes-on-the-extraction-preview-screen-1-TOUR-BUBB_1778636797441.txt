@@ -1,0 +1,73 @@
+Four fixes on the extraction preview screen:
+
+1. TOUR BUBBLE STYLE:
+The first tour bubble on the preview screen 
+is not using the streaming/typing animation 
+and does not match the color scheme of the 
+other tour bubbles. Make it identical in 
+style to the other feature tour bubbles — 
+same dark background, same electric blue 
+accents, same typing animation, same Got it 
+button style.
+
+2. REPLACE STATUS BADGE WITH DOCUMENT TYPE:
+Remove the colored Ready/Review/Check badges 
+entirely.
+
+Replace with a simple plain text label:
+"Document Type: Drawings"
+or
+"Document Type: Specifications"
+or
+"Document Type: Unspecified"
+
+No color coding. No badge pill shape.
+Just a simple gray label line below the 
+filename and page count, same style as 
+other metadata text on the screen.
+
+Detection logic:
+- "Drawings" — if sheet numbers like A101, 
+  C1.00 etc were detected in the document
+- "Specifications" — if filename contains 
+  "spec", "manual", "division" OR if CSI 
+  section patterns detected in extracted text
+- "Unspecified" — if neither of the above
+
+3. RENAME "REVIEW" TO "PREVIEW" EVERYWHERE:
+On the extraction preview screen, find every 
+instance of the word "Review" or "Reviewing" 
+and replace with "Preview" or "Previewing".
+Do not change the word "preview" where it 
+already exists — only replace instances of 
+"review/reviewing".
+
+4. REPLACE EXTRACTED TEXT SAMPLE BOX WITH 
+   FULL EXTRACTED TEXT DISPLAY:
+Remove the "Extracted Text Sample (Page 1)" 
+box that shows only 400 characters.
+
+Replace it with a full scrollable extracted 
+text panel that shows ALL pages with clear 
+page breaks between them, exactly like the 
+old preview screen:
+
+- Label: "Extracted Text"
+- Scrollable container, max height 400px
+- For each page show:
+  --- Page N ---
+  [full text of that page]
+  [blank line]
+  --- Page N+1 ---
+  [full text of that page]
+  etc.
+- Monospace font, 12px, dark inset box
+- Gray text color
+- If a page has no text show:
+  --- Page N --- (no text extracted)
+- Show all pages, not just page 1
+- Text loads progressively as extraction 
+  runs — pages appear as they are extracted, 
+  not all at once after completion
+
+Push to GitHub after all four fixes.

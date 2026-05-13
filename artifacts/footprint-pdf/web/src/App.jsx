@@ -259,15 +259,20 @@ export default function App() {
         try {
           const extracted = await runTextExtraction(
             selected, data.pages, extractCtrl.signal,
-            (page) => setPreviewDocs((prev) =>
-              prev.map((d) => d.id === "primary" ? { ...d, pagesExtracted: page } : d)),
+            (page, _t, pgText, pgTitle, pgSheet) => setPreviewDocs((prev) =>
+              prev.map((d) => d.id === "primary" ? {
+                ...d,
+                pagesExtracted: page,
+                pageTexts:  [...d.pageTexts,  pgText  ?? ""],
+                pageTitles: [...d.pageTitles, pgTitle ?? ""],
+                pageSheets: [...d.pageSheets, pgSheet ?? ""],
+              } : d)),
           );
           if (extractCtrl.signal.aborted) return;
           primaryTexts = extracted.pageTexts;
           setPreviewDocs((prev) => prev.map((d) =>
             d.id === "primary"
-              ? { ...d, pageTexts: extracted.pageTexts, pageTitles: extracted.pageTitles,
-                  pageSheets: extracted.pageSheets, pagesExtracted: data.pages, isDone: true }
+              ? { ...d, pagesExtracted: data.pages, isDone: true }
               : d));
         } catch (e) {
           if (!extractCtrl.signal.aborted) setError(`Text extraction failed: ${e.message}`);
@@ -289,14 +294,19 @@ export default function App() {
           try {
             const xExtracted = await runTextExtraction(
               xFile, xPages, extractCtrl.signal,
-              (page) => setPreviewDocs((prev) =>
-                prev.map((d) => d.id === xId ? { ...d, pagesExtracted: page } : d)),
+              (page, _t, pgText, pgTitle, pgSheet) => setPreviewDocs((prev) =>
+                prev.map((d) => d.id === xId ? {
+                  ...d,
+                  pagesExtracted: page,
+                  pageTexts:  [...d.pageTexts,  pgText  ?? ""],
+                  pageTitles: [...d.pageTitles, pgTitle ?? ""],
+                  pageSheets: [...d.pageSheets, pgSheet ?? ""],
+                } : d)),
             );
             if (extractCtrl.signal.aborted) return;
             setPreviewDocs((prev) => prev.map((d) =>
               d.id === xId
-                ? { ...d, pageTexts: xExtracted.pageTexts, pageTitles: xExtracted.pageTitles,
-                    pageSheets: xExtracted.pageSheets, pagesExtracted: xPages, isDone: true }
+                ? { ...d, pagesExtracted: xPages, isDone: true }
                 : d));
           } catch { continue; }
         }
@@ -526,15 +536,20 @@ export default function App() {
       try {
         const extracted = await runTextExtraction(
           drawingsFile, pages, extractCtrl.signal,
-          (page) => setPreviewDocs((prev) =>
-            prev.map((d) => d.id === "primary" ? { ...d, pagesExtracted: page } : d)),
+          (page, _t, pgText, pgTitle, pgSheet) => setPreviewDocs((prev) =>
+            prev.map((d) => d.id === "primary" ? {
+              ...d,
+              pagesExtracted: page,
+              pageTexts:  [...d.pageTexts,  pgText  ?? ""],
+              pageTitles: [...d.pageTitles, pgTitle ?? ""],
+              pageSheets: [...d.pageSheets, pgSheet ?? ""],
+            } : d)),
         );
         if (extractCtrl.signal.aborted) return;
         drawingsTexts = extracted.pageTexts;
         setPreviewDocs((prev) => prev.map((d) =>
           d.id === "primary"
-            ? { ...d, pageTexts: extracted.pageTexts, pageTitles: extracted.pageTitles,
-                pageSheets: extracted.pageSheets, pagesExtracted: pages, isDone: true }
+            ? { ...d, pagesExtracted: pages, isDone: true }
             : d));
       } catch (e) {
         if (!extractCtrl.signal.aborted) setError(`Text extraction failed: ${e.message}`);
@@ -558,14 +573,19 @@ export default function App() {
         try {
           const specsExtracted = await runTextExtraction(
             specsFile, specsPages, extractCtrl.signal,
-            (page) => setPreviewDocs((prev) =>
-              prev.map((d) => d.id === "extra-0" ? { ...d, pagesExtracted: page } : d)),
+            (page, _t, pgText, pgTitle, pgSheet) => setPreviewDocs((prev) =>
+              prev.map((d) => d.id === "extra-0" ? {
+                ...d,
+                pagesExtracted: page,
+                pageTexts:  [...d.pageTexts,  pgText  ?? ""],
+                pageTitles: [...d.pageTitles, pgTitle ?? ""],
+                pageSheets: [...d.pageSheets, pgSheet ?? ""],
+              } : d)),
           );
           if (!extractCtrl.signal.aborted) {
             setPreviewDocs((prev) => prev.map((d) =>
               d.id === "extra-0"
-                ? { ...d, pageTexts: specsExtracted.pageTexts, pageTitles: specsExtracted.pageTitles,
-                    pageSheets: specsExtracted.pageSheets, pagesExtracted: specsPages, isDone: true }
+                ? { ...d, pagesExtracted: specsPages, isDone: true }
                 : d));
           }
         } catch (e) {
@@ -1084,7 +1104,7 @@ async function runTextExtraction(file, numPages, signal, onProgress) {
       pageTexts.push(text);
       pageTitles.push(title);
       pageSheets.push(sheet);
-      onProgress?.(i, numPages);
+      onProgress?.(i, numPages, text, title, sheet);
     }
   } finally {
     await pdf.destroy();
