@@ -2948,28 +2948,13 @@ button { font-family: inherit; }
 
 /* ── Tour spotlight ────────────────────────────────────────────────────────── */
 @keyframes tour-spotlight {
-  0%   {
-    box-shadow: 0 0 0 4px #007BFF,
-                0 0 30px 10px #007BFF,
-                0 0 60px 20px rgba(0,123,255,0.5);
-    outline: 3px solid #007BFF;
-  }
-  50%  {
-    box-shadow: 0 0 0 2px #007BFF,
-                0 0 10px 2px #007BFF,
-                0 0 20px 5px rgba(0,123,255,0.2);
-    outline: 2px solid rgba(0,123,255,0.5);
-  }
-  100% {
-    box-shadow: 0 0 0 4px #007BFF,
-                0 0 30px 10px #007BFF,
-                0 0 60px 20px rgba(0,123,255,0.5);
-    outline: 3px solid #007BFF;
-  }
+  0%   { box-shadow: 0 0 0 3px #007BFF, 0 0 16px #007BFF; }
+  50%  { box-shadow: 0 0 0 1px #007BFF, 0 0 4px #007BFF; }
+  100% { box-shadow: 0 0 0 3px #007BFF, 0 0 16px #007BFF; }
 }
 .tour-spotlight-active {
-  animation: tour-spotlight 1s ease-in-out infinite;
+  animation: tour-spotlight 1.5s ease-in-out infinite;
   border-radius: 4px;
   position: relative;
-  z-index: 1000;
+  z-index: 1;
 }
