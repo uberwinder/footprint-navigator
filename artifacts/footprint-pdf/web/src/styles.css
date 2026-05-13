@@ -470,9 +470,9 @@ button { font-family: inherit; }
 /* Menu bar back/forward nav buttons */
 .ws-navbtn {
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 36px; height: 36px; padding: 0;
+  min-width: 64px; height: 64px; width: 64px; padding: 0;
   background: transparent; border: none; border-radius: 4px;
-  color: var(--text-dim); font-size: 20px; font-weight: 700; font-family: inherit; cursor: pointer;
+  color: var(--text-dim); font-size: 36px; font-weight: 900; font-family: inherit; cursor: pointer;
   transition: background .1s, color .1s;
   flex-shrink: 0;
 }
@@ -487,12 +487,12 @@ button { font-family: inherit; }
 .ws-exit-demo {
   margin-left: 4px;
   padding: 2px 10px; height: 22px;
-  background: #cc0000; border: 1px solid #cc0000; border-radius: 4px;
-  color: #fff; font-family: inherit; font-size: 12px; cursor: pointer;
-  transition: background .1s, border-color .1s;
+  background: #cc0000 !important; border: none; border-radius: 4px;
+  color: #fff !important; font-family: inherit; font-size: 12px; cursor: pointer;
+  transition: background .1s;
   white-space: nowrap;
 }
-.ws-exit-demo:hover { background: #ff0000; border-color: #ff0000; color: #fff; }
+.ws-exit-demo:hover { background: #ff0000 !important; color: #fff !important; }
 
 .ws-menubar {
   display: flex; align-items: stretch;

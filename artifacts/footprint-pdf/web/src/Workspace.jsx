@@ -258,7 +258,7 @@ const MENUS = [
 ];
 
 const BOOKMARK_SVG = (
-  <svg width="12" height="15" viewBox="0 0 18 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg width="9" height="11" viewBox="0 0 18 22" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M3 2h12a2 2 0 0 1 2 2v15l-8-5-8 5V4a2 2 0 0 1 2-2z"
       stroke="currentColor"
