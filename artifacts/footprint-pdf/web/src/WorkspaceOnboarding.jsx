@@ -21,9 +21,9 @@ const FEATURES = [
   },
   {
     title: "Project Files",
-    spotlight: "#ws-settings-project-files",
+    spotlight: null,
     intro:
-      "Navigator can work with up to 5 related documents at once in a single project. To set this up, open the chat panel in the bottom right corner, then click the gear icon inside the chat panel to open Settings. Look for the Project Files section. Add your specs, RFIs, submittals, or any related PDF there, give your project a name, and Navigator will search all of them together — always telling you which document an answer came from. You can also paste project links to keep everything in one place. Full integrations are currently in development.",
+      "Navigator can work with up to 5 related documents in a single project. To set this up, open the chat panel with Ctrl+Enter, then click the gear icon inside it to open Settings. Look for the Project Files section to add your specs, RFIs, or any related document. Navigator will search all of them together and always tell you which document an answer came from.",
   },
   {
     title: "Measurement Tools",
@@ -124,12 +124,10 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Set spotlight when a feature starts streaming; signal Workspace for Project Files stop
+  // Set spotlight when a feature starts streaming
   useEffect(() => {
     if (phase !== "feature-intro") return;
-    // Project Files (index 1): spotlight fires after settings panel mounts, handled by Workspace
-    if (featureIndex !== 1) onSpotlight?.(FEATURES[featureIndex].spotlight ?? null);
-    if (featureIndex === 1) onTourAction?.("open-project-files");
+    onSpotlight?.(FEATURES[featureIndex].spotlight ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, featureIndex]);
 
@@ -182,12 +180,6 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
     onSpotlight?.(null);
     advanceFeature();
   }, [advanceFeature, onSpotlight]);
-
-  const handleProjectFilesGotIt = useCallback(() => {
-    onSpotlight?.(null);
-    onTourAction?.("close-chat");
-    advanceFeature();
-  }, [onSpotlight, onTourAction, advanceFeature]);
 
   const handleSettingsGotIt = useCallback(() => {
     onTourAction?.("close-chat");
@@ -253,13 +245,8 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
             </button>
           )}
 
-          {phase === "chips" && featureIndex !== 1 && featureIndex !== 3 && featureIndex !== 4 && (
+          {phase === "chips" && featureIndex !== 3 && featureIndex !== 4 && (
             <button className="wob-btn wob-btn--primary" onClick={handleGotIt}>
-              Got it
-            </button>
-          )}
-          {phase === "chips" && featureIndex === 1 && (
-            <button className="wob-btn wob-btn--primary" onClick={handleProjectFilesGotIt}>
               Got it
             </button>
           )}
