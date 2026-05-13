@@ -1,0 +1,69 @@
+Three fixes to the tour spotlight:
+
+1. MAKE SPOTLIGHT MUCH MORE BLATANT:
+Replace the current tour-spotlight animation 
+with this much more aggressive version:
+
+@keyframes tour-spotlight {
+  0%   { 
+    box-shadow: 0 0 0 4px #007BFF, 
+                0 0 30px 10px #007BFF,
+                0 0 60px 20px rgba(0,123,255,0.5);
+    outline: 3px solid #007BFF;
+  }
+  50%  { 
+    box-shadow: 0 0 0 2px #007BFF,
+                0 0 10px 2px #007BFF,
+                0 0 20px 5px rgba(0,123,255,0.2);
+    outline: 2px solid rgba(0,123,255,0.5);
+  }
+  100% { 
+    box-shadow: 0 0 0 4px #007BFF, 
+                0 0 30px 10px #007BFF,
+                0 0 60px 20px rgba(0,123,255,0.5);
+    outline: 3px solid #007BFF;
+  }
+}
+.tour-spotlight-active {
+  animation: tour-spotlight 1s ease-in-out infinite;
+  position: relative;
+  z-index: 1000;
+}
+
+This is 5-10x more visible than before.
+
+2. PROJECT FILES STOP — OPEN CHAT SETTINGS:
+When the Project Files tour stop becomes active:
+a) Automatically open the chat panel 
+   (set chatOpen to true)
+b) Automatically open the chat settings 
+   panel inside the chat (navigate to the 
+   settings/project files view inside chat)
+c) Spotlight the Project Files section 
+   inside the chat settings panel — find 
+   its CSS selector and apply 
+   tour-spotlight-active to it
+d) Keep the tour bubble rendered on top 
+   (z-index higher than chat panel)
+e) When user clicks Got it:
+   - Remove spotlight
+   - Close chat settings panel
+   - Close chat panel
+   - Advance to next stop (Measurement Tools)
+
+To open chat settings automatically, find 
+the mechanism that opens the settings view 
+inside the chat panel — it may be a state 
+variable like chatTab or settingsOpen. 
+Show me what controls the chat settings 
+view before implementing.
+
+3. NAVIGATOR AI CHAT AND SETTINGS STOPS:
+The spotlight on these two stops also needs 
+the new more aggressive animation from fix 1.
+No other changes to these stops.
+
+Read the chat settings open/close mechanism 
+before writing any code for fix 2.
+
+Push to GitHub after all fixes.

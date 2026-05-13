@@ -2719,6 +2719,8 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
           onSpotlight={handleTourSpotlight}
           chatOpen={chatOpen}
           onCloseChat={() => setChatOpen(false)}
+          onOpenChatSettings={() => { setChatOpen(true); setSettingsOpen(true); }}
+          onCloseSettings={() => setSettingsOpen(false)}
         />
       )}
 
@@ -3465,7 +3467,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                   </div>
 
                   {/* S4: Project Files */}
-                  <div className="ws-settings-section">
+                  <div id="ws-settings-project-files" className="ws-settings-section">
                     <div className="ws-settings-section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span>Project Files</span>
                       <span className="ws-settings-doc-count">{1 + extraDocs.length + contextFiles.length} of 5 documents</span>
