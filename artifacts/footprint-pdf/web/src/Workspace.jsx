@@ -2693,9 +2693,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
       {/* ── Menu Bar ── */}
       <div className="ws-menubar" ref={menuBarRef}>
-        <button className="ws-navbtn" title="Back (Alt+Left)" onClick={goBackView} disabled={navHistTick >= 0 && viewHistIdxRef.current <= 0}>←</button>
-        <button className="ws-navbtn" title="Forward (Alt+Right)" onClick={goForwardView} disabled={navHistTick >= 0 && viewHistIdxRef.current >= viewHistRef.current.history.length - 1}>→</button>
-        <div className="ws-menubar-navsep" />
         {MENUS.map((menu) => (
           <div key={menu.id} className="ws-menu-wrap">
             <button
@@ -2759,9 +2756,13 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
             )}
           </div>
         ))}
-        {isSampleProject && (
-          <button className="ws-exit-demo" onClick={() => onShowFeedback?.()}>Exit Demo</button>
-        )}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '6px' }}>
+          <button className="ws-navbtn" title="Back (Alt+Left)" onClick={goBackView} disabled={navHistTick >= 0 && viewHistIdxRef.current <= 0}>←</button>
+          <button className="ws-navbtn" title="Forward (Alt+Right)" onClick={goForwardView} disabled={navHistTick >= 0 && viewHistIdxRef.current >= viewHistRef.current.history.length - 1}>→</button>
+          {isSampleProject && (
+            <button className="ws-exit-demo" onClick={() => onShowFeedback?.()}>Exit Demo</button>
+          )}
+        </div>
       </div>
 
       {/* File inputs */}
