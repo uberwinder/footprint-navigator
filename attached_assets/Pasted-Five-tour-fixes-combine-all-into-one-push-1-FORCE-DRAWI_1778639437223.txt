@@ -1,0 +1,93 @@
+Five tour fixes — combine all into one push:
+
+1. FORCE DRAWINGS TAB ON TOUR START:
+When the workspace onboarding tour begins 
+(after the preview screen stop), immediately 
+switch to tab index 0 (drawings tab).
+
+2. REMOVE KEYWORD SEARCH TOUR STOP:
+The current tour has these stops in order:
+- Preview Screen
+- Sheet and Thumbnail Panel
+- Project Files
+- Keyword Search  ← REMOVE THIS ONE
+- Measurement Tools
+- Navigator AI Chat
+- Settings
+
+Delete the Keyword Search stop entirely. 
+After removal the order should be:
+- Preview Screen
+- Sheet and Thumbnail Panel
+- Project Files
+- Measurement Tools
+- Navigator AI Chat
+- Settings
+
+Update any "Feature X of Y" counters to 
+reflect the new total.
+
+3. ADD "ALSO" TO SETTINGS TEXT:
+Find the Settings tour bubble and change 
+the text to:
+"The chat panel also has its own settings 
+that give you full control over how Navigator 
+responds. To access them, open the chat panel 
+and look for the settings icon inside it. 
+From there you can choose your AI mode, 
+customize how Navigator responds, and track 
+your usage."
+
+4. SPOTLIGHT — BLINK BLUE ON THESE STOPS:
+
+Add this CSS animation to styles.css:
+@keyframes tour-spotlight {
+  0%   { box-shadow: 0 0 0 3px #007BFF, 
+                     0 0 16px #007BFF; }
+  50%  { box-shadow: 0 0 0 1px #007BFF, 
+                     0 0 4px #007BFF; }
+  100% { box-shadow: 0 0 0 3px #007BFF, 
+                     0 0 16px #007BFF; }
+}
+.tour-spotlight-active {
+  animation: tour-spotlight 1.5s ease-in-out 
+  infinite;
+}
+
+Apply .tour-spotlight-active to these 
+elements during their respective stops 
+only — add on stop start, remove on 
+Got it click:
+
+SHEET AND THUMBNAIL PANEL stop:
+→ Target: the left sidebar panel container
+
+MEASUREMENT TOOLS stop:
+→ Target: the Tools menu item in the 
+  top menu bar
+
+NAVIGATOR AI CHAT stop:
+→ Target: the chat button in the bottom 
+  right toolbar
+
+No spotlight on: Preview Screen, 
+Project Files, Settings stops.
+
+Implementation approach:
+- Add spotlightSelector state to 
+  WorkspaceOnboarding (null when no spotlight)
+- Each stop sets its spotlightSelector when 
+  it becomes active, sets null on Got it
+- Pass spotlightSelector up to Workspace 
+  via a callback prop
+- Workspace uses useEffect watching 
+  spotlightSelector to add/remove 
+  tour-spotlight-active class via 
+  document.querySelector
+- On tour close (X button), clear all 
+  spotlight classes
+
+Show me the current tour stop structure 
+in WorkspaceOnboarding.jsx before writing 
+any code — confirm the stop names and 
+order match what is described above.

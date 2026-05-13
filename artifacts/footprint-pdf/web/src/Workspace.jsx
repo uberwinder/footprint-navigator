@@ -2695,6 +2695,17 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
     URL.revokeObjectURL(url);
   }, [measurements, calibSaved, meta.filename]);
 
+  // ── Tour spotlight helper ───────────────────────────────────────────────────
+  const handleTourSpotlight = useCallback((selector) => {
+    document.querySelectorAll(".tour-spotlight-active").forEach((el) => {
+      el.classList.remove("tour-spotlight-active");
+    });
+    if (selector) {
+      const el = document.querySelector(selector);
+      if (el) el.classList.add("tour-spotlight-active");
+    }
+  }, []);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -2704,13 +2715,15 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
         <WorkspaceOnboarding
           onClose={onOnboardDone}
           skipWelcome={skipWelcome}
+          onSwitchToDrawings={() => setActiveDocId(null)}
+          onSpotlight={handleTourSpotlight}
         />
       )}
 
       {/* ── Menu Bar ── */}
       <div className="ws-menubar" ref={menuBarRef}>
         {MENUS.map((menu) => (
-          <div key={menu.id} className="ws-menu-wrap">
+          <div key={menu.id} className="ws-menu-wrap" data-menu-id={menu.id}>
             <button
               className={`ws-menu-btn ${openMenu === menu.id ? "open" : ""}`}
               onClick={() => { setOpenMenu(openMenu === menu.id ? null : menu.id); setOpenSubmenu(null); }}

@@ -13,6 +13,7 @@ const HANDOFF_TEXT =
 const FEATURES = [
   {
     title: "Sheet and Thumbnail Panel",
+    spotlight: ".ws-left-bar",
     intro:
       "The left panel shows every page as a thumbnail. Navigator automatically reads each page title block and detects sheet numbers like A101, P201, E301. " +
       "Blue means auto-detected, white means manually corrected, gray means not detected. Click any thumbnail to jump to that page instantly. " +
@@ -20,39 +21,27 @@ const FEATURES = [
   },
   {
     title: "Project Files",
+    spotlight: null,
     intro:
       "Navigator can work with up to 5 related documents at once in a single project. To set this up, open the chat panel in the bottom right corner, then click the gear icon inside the chat panel to open Settings. Look for the Project Files section. Add your specs, RFIs, submittals, or any related PDF there, give your project a name, and Navigator will search all of them together — always telling you which document an answer came from. You can also paste project links to keep everything in one place. Full integrations are currently in development.",
   },
   {
-    title: "Keyword Search",
-    intro:
-      "Search every page of your document instantly by keyword. Results show the exact page number and a text snippet. Click any result to jump directly to that page.",
-  },
-  {
     title: "Measurement Tools",
+    spotlight: '[data-menu-id="tools"]',
     intro:
       "Navigator has a full set of measurement tools that work directly on any PDF page. Set your scale first and all measurements calculate real-world dimensions automatically. Navigator will prompt you to set scale if you forget.",
   },
   {
     title: "Navigator AI Chat",
+    spotlight: ".ws-chat-toggle",
     intro:
       "The chat panel in the bottom right is where the real power is. Ask Navigator anything about your document in plain language and it will find the answer and link directly to the page it came from. Open and close the chat panel anytime with Ctrl+Enter, or click the pulsing blue button in the bottom right of the toolbar.",
   },
   {
-    title: "What Is In Development",
-    intro:
-      "Footprint Navigator launched as a web app and a lot more is being built right now. Here is what the team is actively working on:\n\n" +
-      "- Desktop App — offline use and local file access\n" +
-      "- External Integrations — take action without leaving the app\n" +
-      "- Persistent Storage — save and reopen without re-uploading\n" +
-      "- Team Pricing/Features — contact us for info\n" +
-      "- Expanded Industries — legal, insurance, engineering, etc.\n\n" +
-      "All of the above are currently in development. Launch date is July 1, 2026. Pricing starts at $19 per month for Solo users. Questions? Reach us at info@footprintnavigator.com.",
-  },
-  {
     title: "Settings and AI Modes",
+    spotlight: null,
     intro:
-      "The chat panel has its own settings that give you full control over how Navigator responds. To access them, open the chat panel and look for the settings icon inside it. From there you can choose your AI mode, customize how Navigator responds, and track your usage.",
+      "The chat panel also has its own settings that give you full control over how Navigator responds. To access them, open the chat panel and look for the settings icon inside it. From there you can choose your AI mode, customize how Navigator responds, and track your usage.",
   },
 ];
 
@@ -62,7 +51,7 @@ const TW_INTERVAL = 18;
 // opening → opening-buttons → feature-intro → chips → … → handoff
 // → qa-input → qa-thinking → qa-answer → qa-input | done
 
-export default function WorkspaceOnboarding({ onClose, skipWelcome = false }) {
+export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSwitchToDrawings, onSpotlight }) {
   const [phase,        setPhase]        = useState(skipWelcome ? "feature-intro" : "opening");
   const [featureIndex, setFeatureIndex] = useState(0);
   const [streamedText, setStreamedText] = useState("");
@@ -129,6 +118,14 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
+  // Spotlight target element + switch to drawings tab when a feature starts
+  useEffect(() => {
+    if (phase !== "feature-intro") return;
+    if (featureIndex === 0) onSwitchToDrawings?.();
+    onSpotlight?.(FEATURES[featureIndex].spotlight ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, featureIndex]);
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const callAI = useCallback(async (question, hist) => {
     try {
@@ -159,11 +156,15 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false }) {
 
   const handleClose = useCallback(() => {
     if (twTimerRef.current) clearInterval(twTimerRef.current);
+    onSpotlight?.(null);
     setPhase("done");
     onCloseRef.current?.();
-  }, []);
+  }, [onSpotlight]);
 
-  const handleGotIt = useCallback(() => advanceFeature(), [advanceFeature]);
+  const handleGotIt = useCallback(() => {
+    onSpotlight?.(null);
+    advanceFeature();
+  }, [advanceFeature, onSpotlight]);
 
   const handleQaSend = useCallback(async () => {
     const q = qaInput.trim();
