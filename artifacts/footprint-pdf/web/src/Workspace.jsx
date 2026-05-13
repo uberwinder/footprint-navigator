@@ -258,7 +258,7 @@ const MENUS = [
 ];
 
 const BOOKMARK_SVG = (
-  <svg width="18" height="22" viewBox="0 0 18 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg width="12" height="15" viewBox="0 0 18 22" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
       d="M3 2h12a2 2 0 0 1 2 2v15l-8-5-8 5V4a2 2 0 0 1 2-2z"
       stroke="currentColor"
@@ -3766,8 +3766,8 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
 
           <div className="ws-btbar-sep" />
 
-          <button className="ws-btbtn" title="Previous view (Alt+←)" onClick={goBackView}>←</button>
-          <button className="ws-btbtn" title="Next view (Alt+→)"     onClick={goForwardView}>→</button>
+          <button className="ws-btbtn ws-btbtn--viewnav" title="Previous view (Alt+←)" onClick={goBackView}>←</button>
+          <button className="ws-btbtn ws-btbtn--viewnav" title="Next view (Alt+→)"     onClick={goForwardView}>→</button>
         </div>
 
         {/* Right: snap toggle + page dimensions + scale + chat toggle */}
