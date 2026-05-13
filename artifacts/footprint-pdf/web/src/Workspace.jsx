@@ -803,7 +803,7 @@ function renderMarkdownWithLinks(text, sheetMap, onJump) {
 
 // ── Workspace ────────────────────────────────────────────────────────────────
 
-export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject, pendingProjectName, isSampleProject = false, onShowFeedback }) {
+export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheets, isOcring, ocrProgress, onNewFile, onboardDone, onOnboardDone, pendingTabFiles, extraFilesAsSameProject, pendingProjectName, isSampleProject = false, onShowFeedback, preloadedTabData = [], skipWelcome = false }) {
   // PDF
   const [pdfDoc,   setPdfDoc]   = useState(null);
   const [numPages, setNumPages] = useState(meta.pages || 0);
@@ -891,6 +891,10 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const activePageTexts  = activeDoc ? activeDoc.pageTexts  : pageTexts;
   const activePageTitles = activeDoc ? activeDoc.pageTitles : pageTitles;
   const activePageSheets = activeDoc ? activeDoc.pageSheets : pageSheets;
+
+  // Pre-extracted data passed from ExtractionPreview — lets loadExtraDoc skip re-extraction
+  const preloadedTabDataRef = useRef(preloadedTabData);
+  useEffect(() => { preloadedTabDataRef.current = preloadedTabData; }, [preloadedTabData]);
 
   // Combined sheet → page map across ALL open documents (primary + extra tabs).
   // Extra docs are added first so primary doc wins if the same sheet label
@@ -2374,19 +2378,26 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       const arrayBuffer = await file.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       const pdf = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
-      const texts = [];
-      const titles = [];
-      const sheets = [];
-      for (let p = 1; p <= pdf.numPages; p++) {
-        const pg = await pdf.getPage(p);
-        const ct = await pg.getTextContent();
-        const t = ct.items.map(i => i.str).join(" ");
-        texts.push(t);
-        // Simple title/sheet extraction — look for common title block patterns
-        const titleMatch = t.match(/drawing title[:\s]+([^\n]{3,60})/i) || t.match(/^([A-Z0-9][^\n]{2,50})\n/);
-        titles.push(titleMatch ? titleMatch[1].trim() : "");
-        const sheetMatch = t.match(/^([A-Za-z]{1,3}[-.]?\d{1,2}[-.]\d{2,3})\b/) || t.match(/\bsheet[:\s]+([A-Z0-9.-]{2,12})/i);
-        sheets.push(sheetMatch ? sheetMatch[1].trim() : "");
+      // Use preloaded extraction data when available (skips re-extraction for preview-processed docs)
+      const preloaded = preloadedTabDataRef.current?.find((d) => d.name === file.name);
+      let texts, titles, sheets;
+      if (preloaded) {
+        texts  = preloaded.pageTexts;
+        titles = preloaded.pageTitles;
+        sheets = preloaded.pageSheets;
+      } else {
+        texts = []; titles = []; sheets = [];
+        for (let p = 1; p <= pdf.numPages; p++) {
+          const pg = await pdf.getPage(p);
+          const ct = await pg.getTextContent();
+          const t = ct.items.map(i => i.str).join(" ");
+          texts.push(t);
+          // Simple title/sheet extraction — look for common title block patterns
+          const titleMatch = t.match(/drawing title[:\s]+([^\n]{3,60})/i) || t.match(/^([A-Z0-9][^\n]{2,50})\n/);
+          titles.push(titleMatch ? titleMatch[1].trim() : "");
+          const sheetMatch = t.match(/^([A-Za-z]{1,3}[-.]?\d{1,2}[-.]\d{2,3})\b/) || t.match(/\bsheet[:\s]+([A-Z0-9.-]{2,12})/i);
+          sheets.push(sheetMatch ? sheetMatch[1].trim() : "");
+        }
       }
       const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const entry = { id, name: file.name, pdfDoc: pdf, pdfBytes: bytes, pageTexts: texts, pageTitles: titles, pageSheets: sheets, numPages: pdf.numPages, projectId: projectId || null };
@@ -2692,8 +2703,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       {!onboardDone && (
         <WorkspaceOnboarding
           onClose={onOnboardDone}
-          pageSheets={activePageSheets}
-          onSwitchToFirstTab={() => setActiveDocId(null)}
+          skipWelcome={skipWelcome}
         />
       )}
 

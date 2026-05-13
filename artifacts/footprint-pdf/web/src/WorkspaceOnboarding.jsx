@@ -62,8 +62,8 @@ const TW_INTERVAL = 18;
 // opening → opening-buttons → feature-intro → chips → … → handoff
 // → qa-input → qa-thinking → qa-answer → qa-input | done
 
-export default function WorkspaceOnboarding({ onClose, pageSheets, onSwitchToFirstTab }) {
-  const [phase,        setPhase]        = useState("waiting"); // waits for sheets before starting
+export default function WorkspaceOnboarding({ onClose, skipWelcome = false }) {
+  const [phase,        setPhase]        = useState(skipWelcome ? "feature-intro" : "opening");
   const [featureIndex, setFeatureIndex] = useState(0);
   const [streamedText, setStreamedText] = useState("");
   const [qaInput,      setQaInput]      = useState("");
@@ -75,28 +75,7 @@ export default function WorkspaceOnboarding({ onClose, pageSheets, onSwitchToFir
   const scrollRef      = useRef(null);
   const inputRef       = useRef(null);
   const onCloseRef     = useRef(onClose);
-  const pageSheetsRef  = useRef(pageSheets);
-  useEffect(() => { onCloseRef.current    = onClose;     }, [onClose]);
-  useEffect(() => { pageSheetsRef.current = pageSheets;  }, [pageSheets]);
-
-  // ── Wait for sheet extraction, then set tab to 0 and begin tour ──────────────
-  useEffect(() => {
-    const startTour = () => {
-      onSwitchToFirstTab?.();
-      setPhase("opening");
-    };
-    const deadline = Date.now() + 15_000;
-    const timer = setInterval(() => {
-      const sheets = pageSheetsRef.current;
-      const ready  = sheets && sheets.some(s => s && s.length > 0);
-      if (ready || Date.now() >= deadline) {
-        clearInterval(timer);
-        startTour();
-      }
-    }, 500);
-    return () => clearInterval(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   // Auto-scroll body as text streams in
   useEffect(() => {
@@ -201,7 +180,7 @@ export default function WorkspaceOnboarding({ onClose, pageSheets, onSwitchToFir
     setPhase("qa-answer");
   }, [qaInput, loading, qaHistory, callAI]);
 
-  if (phase === "done" || phase === "waiting") return null;
+  if (phase === "done") return null;
 
   const showFeatureBadge = ["chips", "feature-intro"].includes(phase);
 

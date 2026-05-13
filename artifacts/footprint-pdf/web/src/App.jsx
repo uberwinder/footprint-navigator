@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, Component } from "react";
-import PreviewMode from "./PreviewMode.jsx";
+import ExtractionPreview from "./ExtractionPreview.jsx";
 import Workspace   from "./Workspace.jsx";
 import FeedbackModal from "./FeedbackModal.jsx";
 import * as pdfjsLib from "pdfjs-dist";
@@ -104,6 +104,14 @@ export default function App() {
   const [feedbackDone, setFeedbackDone] = useState(false);
   const [onboardDone,  setOnboardDone]  = useState(false);
 
+  // ── Extraction preview state ─────────────────────────────────────────────────
+  // previewDocs: [{id, file, name, pages, pageTexts, pageTitles, pageSheets, pagesExtracted, isDone}]
+  const [previewDocs,              setPreviewDocs]              = useState([]);
+  const [previewProjectName,       setPreviewProjectName]       = useState("");
+  const [previewExtraAsSameProject, setPreviewExtraAsSameProject] = useState(false);
+  const [previewTourDone,          setPreviewTourDone]          = useState(false);
+  const [preloadedTabData,         setPreloadedTabData]         = useState([]);
+
   // ── Multi-file state ────────────────────────────────────────────────────────
   // multiModal: 'closed' | 'choosing' | 'sorting' | 'combining'
   const [multiModal,    setMultiModal]    = useState("closed");
@@ -127,10 +135,22 @@ export default function App() {
   const inputRef        = useRef(null);
   const ocrAbortRef     = useRef(null);
   const feedbackDoneRef = useRef(false);
-  const leaveTimerRef   = useRef(null);
-  const dragIndexRef    = useRef(null);
+  const leaveTimerRef              = useRef(null);
+  const dragIndexRef               = useRef(null);
+  // Refs so uploadFile (useCallback with [] deps) can read current multi-file state
+  const pendingTabFilesRef         = useRef([]);
+  const extraFilesAsSameProjectRef = useRef(false);
+  const pendingProjectNameRef      = useRef(null);
+  // Ref so handleOpenInNavigator can read current preview docs without stale closures
+  const previewDocsRef             = useRef([]);
+  // Stores OCR decision so handleOpenInNavigator can start OCR after entering workspace
+  const pendingOcrRef              = useRef(null);
 
-  useEffect(() => { feedbackDoneRef.current = feedbackDone; }, [feedbackDone]);
+  useEffect(() => { feedbackDoneRef.current             = feedbackDone;           }, [feedbackDone]);
+  useEffect(() => { pendingTabFilesRef.current          = pendingTabFiles;         }, [pendingTabFiles]);
+  useEffect(() => { extraFilesAsSameProjectRef.current  = extraFilesAsSameProject; }, [extraFilesAsSameProject]);
+  useEffect(() => { pendingProjectNameRef.current       = pendingProjectName;      }, [pendingProjectName]);
+  useEffect(() => { previewDocsRef.current              = previewDocs;             }, [previewDocs]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -160,6 +180,8 @@ export default function App() {
     setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
     setPendingTabFiles([]); setExtraFilesAsSameProject(false); setPendingProjectName(null);
     setSampleLoading(null); setSampleProgress({ drawings: 0, specs: 0 }); setIsSampleProject(false);
+    setPreviewDocs([]); setPreviewProjectName(""); setPreviewExtraAsSameProject(false);
+    setPreviewTourDone(false); setPreloadedTabData([]);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -209,50 +231,82 @@ export default function App() {
         const data = JSON.parse(xhr.responseText);
 
         setMeta({ filename: data.filename, size: data.size, pages: data.pages, info: data.info });
-        setPageTexts(Array(data.pages).fill(""));
-        setPageTitles(Array(data.pages).fill(""));
-        setPageSheets(Array(data.pages).fill(""));
         setExtractedText("");
-        setAppState("workspace");
 
+        // ── Enter preview screen ─────────────────────────────────────────────
+        const extras    = pendingTabFilesRef.current;
+        const projName  = pendingProjectNameRef.current || data.filename.replace(/\.pdf$/i, "");
+        const sameProj  = extraFilesAsSameProjectRef.current;
+
+        const primaryEntry = {
+          id: "primary", file: selected, name: data.filename, pages: data.pages,
+          pageTexts: [], pageTitles: [], pageSheets: [], pagesExtracted: 0, isDone: false,
+        };
+        const extraEntries = extras.map((f, i) => ({
+          id: `extra-${i}`, file: f, name: f.name, pages: 0,
+          pageTexts: [], pageTitles: [], pageSheets: [], pagesExtracted: 0, isDone: false,
+        }));
+
+        setPreviewDocs([primaryEntry, ...extraEntries]);
+        setPreviewProjectName(projName);
+        setPreviewExtraAsSameProject(sameProj);
+        setAppState("preview");
+
+        // ── Extract primary doc with per-page progress ────────────────────────
         const extractCtrl = new AbortController();
         ocrAbortRef.current = extractCtrl;
-        let pageTexts = [];
+        let primaryTexts = [];
         try {
-          const extracted = await runTextExtraction(selected, data.pages, extractCtrl.signal);
+          const extracted = await runTextExtraction(
+            selected, data.pages, extractCtrl.signal,
+            (page) => setPreviewDocs((prev) =>
+              prev.map((d) => d.id === "primary" ? { ...d, pagesExtracted: page } : d)),
+          );
           if (extractCtrl.signal.aborted) return;
-          pageTexts = extracted.pageTexts;
-          setPageTexts(pageTexts);
-          setPageTitles(extracted.pageTitles);
-          setPageSheets(extracted.pageSheets);
-          setExtractedText(pageTexts.join("\n\n"));
+          primaryTexts = extracted.pageTexts;
+          setPreviewDocs((prev) => prev.map((d) =>
+            d.id === "primary"
+              ? { ...d, pageTexts: extracted.pageTexts, pageTitles: extracted.pageTitles,
+                  pageSheets: extracted.pageSheets, pagesExtracted: data.pages, isDone: true }
+              : d));
         } catch (e) {
           if (!extractCtrl.signal.aborted) setError(`Text extraction failed: ${e.message}`);
           return;
         }
 
-        const avgChars = pageTexts.length > 0
-          ? pageTexts.reduce((s, t) => s + (t || "").length, 0) / pageTexts.length
-          : 0;
-        if (avgChars < OCR_CHAR_THRESHOLD && data.pages > 0) {
-          setIsOcring(true);
-          const ocrCtrl = new AbortController();
-          ocrAbortRef.current = ocrCtrl;
+        // ── Extract extra docs sequentially ───────────────────────────────────
+        for (let idx = 0; idx < extraEntries.length; idx++) {
+          const xId   = extraEntries[idx].id;
+          const xFile = extraEntries[idx].file;
+          let xPages  = 0;
           try {
-            const ocrTexts = await runOcr(selected, data.pages,
-              (pg, total) => setOcrProgress({ page: pg, total }),
-              ocrCtrl.signal,
+            const buf    = await xFile.arrayBuffer();
+            const pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+            xPages = pdfDoc.numPages;
+            await pdfDoc.destroy();
+          } catch { continue; }
+          setPreviewDocs((prev) => prev.map((d) => d.id === xId ? { ...d, pages: xPages } : d));
+          try {
+            const xExtracted = await runTextExtraction(
+              xFile, xPages, extractCtrl.signal,
+              (page) => setPreviewDocs((prev) =>
+                prev.map((d) => d.id === xId ? { ...d, pagesExtracted: page } : d)),
             );
-            if (!ocrCtrl.signal.aborted) {
-              setPageTexts(ocrTexts);
-              setExtractedText(ocrTexts.join("\n\n"));
-            }
-          } catch (e) {
-            if (!ocrCtrl.signal.aborted) setError(`OCR failed: ${e.message}`);
-          } finally {
-            setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
-          }
+            if (extractCtrl.signal.aborted) return;
+            setPreviewDocs((prev) => prev.map((d) =>
+              d.id === xId
+                ? { ...d, pageTexts: xExtracted.pageTexts, pageTitles: xExtracted.pageTitles,
+                    pageSheets: xExtracted.pageSheets, pagesExtracted: xPages, isDone: true }
+                : d));
+          } catch { continue; }
         }
+
+        // avgChars stored for OCR decision deferred to handleOpenInNavigator
+        const _avgChars = primaryTexts.length > 0
+          ? primaryTexts.reduce((s, t) => s + (t || "").length, 0) / primaryTexts.length : 0;
+        // Store for use when user opens workspace
+        pendingOcrRef.current = _avgChars < OCR_CHAR_THRESHOLD && data.pages > 0
+          ? { file: selected, pages: data.pages } : null;
       } catch (err) {
         setError(err.message || "Upload failed");
         setFile(null); setAppState("idle");
@@ -316,7 +370,9 @@ export default function App() {
     const [first, ...rest] = pendingFiles;
     setPendingTabFiles(rest);
     setExtraFilesAsSameProject(sameProject);
-    uploadFile(first);
+    // keepProjectState: true preserves pendingTabFiles/extraFilesAsSameProject so
+    // the preview screen can read them from refs when the XHR response arrives.
+    uploadFile(first, { keepProjectState: true });
   }, [pendingFiles, sameProject, uploadFile]);
 
   const handleCombineConfirm = useCallback(async () => {
@@ -437,59 +493,92 @@ export default function App() {
       setError("");
       setFile(drawingsFile);
       setMeta({ filename: drawingsFile.name, size: drawingsBuffer.byteLength, pages, info: null });
-      setPageTexts(Array(pages).fill(""));
-      setPageTitles(Array(pages).fill(""));
-      setPageSheets(Array(pages).fill(""));
       setExtractedText("");
       setUploadProgress(100);
       setUploadDone(true);
-      // Specs go into pendingTabFiles → Workspace's loadExtraDoc handles them
-      // client-side (also never touches the upload endpoint).
+      // Specs go into pendingTabFiles so Workspace can load the PDF for viewing.
+      // Text will be pre-extracted here and passed as preloadedTabData.
       setPendingTabFiles([specsFile]);
       setExtraFilesAsSameProject(true);
       setPendingProjectName("Sample");
-      setAppState("workspace");
+      setIsSampleProject(true);
 
-      // ── Background text extraction ──────────────────────────────────────────
+      // ── Enter preview screen ─────────────────────────────────────────────────
+      const drawingsEntry = {
+        id: "primary", file: drawingsFile, name: drawingsFile.name, pages,
+        pageTexts: [], pageTitles: [], pageSheets: [], pagesExtracted: 0, isDone: false,
+      };
+      const specsEntry = {
+        id: "extra-0", file: specsFile, name: specsFile.name, pages: 0,
+        pageTexts: [], pageTitles: [], pageSheets: [], pagesExtracted: 0, isDone: false,
+      };
+      setPreviewDocs([drawingsEntry, specsEntry]);
+      setPreviewProjectName("Sample");
+      setPreviewExtraAsSameProject(true);
+      setAppState("preview");
+
+      // ── Extract drawings with per-page progress ──────────────────────────────
       const extractCtrl = new AbortController();
       ocrAbortRef.current = extractCtrl;
-      let extractedPageTexts = [];
+      let drawingsTexts = [];
       try {
-        const extracted = await runTextExtraction(drawingsFile, pages, extractCtrl.signal);
+        const extracted = await runTextExtraction(
+          drawingsFile, pages, extractCtrl.signal,
+          (page) => setPreviewDocs((prev) =>
+            prev.map((d) => d.id === "primary" ? { ...d, pagesExtracted: page } : d)),
+        );
         if (extractCtrl.signal.aborted) return;
-        extractedPageTexts = extracted.pageTexts;
-        setPageTexts(extractedPageTexts);
-        setPageTitles(extracted.pageTitles);
-        setPageSheets(extracted.pageSheets);
-        setExtractedText(extractedPageTexts.join("\n\n"));
+        drawingsTexts = extracted.pageTexts;
+        setPreviewDocs((prev) => prev.map((d) =>
+          d.id === "primary"
+            ? { ...d, pageTexts: extracted.pageTexts, pageTitles: extracted.pageTitles,
+                pageSheets: extracted.pageSheets, pagesExtracted: pages, isDone: true }
+            : d));
       } catch (e) {
         if (!extractCtrl.signal.aborted) setError(`Text extraction failed: ${e.message}`);
         return;
       }
 
-      // ── OCR fallback if text-sparse ─────────────────────────────────────────
-      const avgChars = extractedPageTexts.length > 0
-        ? extractedPageTexts.reduce((s, t) => s + (t || "").length, 0) / extractedPageTexts.length
-        : 0;
-      if (avgChars < OCR_CHAR_THRESHOLD && pages > 0) {
-        setIsOcring(true);
-        const ocrCtrl = new AbortController();
-        ocrAbortRef.current = ocrCtrl;
+      // ── Count specs pages ────────────────────────────────────────────────────
+      let specsPages = 0;
+      try {
+        const specsBuf = await specsFile.arrayBuffer();
+        const specsPdf = await pdfjsLib.getDocument({ data: specsBuf }).promise;
+        specsPages = specsPdf.numPages;
+        await specsPdf.destroy();
+      } catch (e) {
+        console.warn("[sample] specs page count failed:", e.message);
+      }
+      setPreviewDocs((prev) => prev.map((d) => d.id === "extra-0" ? { ...d, pages: specsPages } : d));
+
+      // ── Extract specs with per-page progress ─────────────────────────────────
+      if (specsPages > 0 && !extractCtrl.signal.aborted) {
         try {
-          const ocrTexts = await runOcr(drawingsFile, pages,
-            (pg, total) => setOcrProgress({ page: pg, total }),
-            ocrCtrl.signal,
+          const specsExtracted = await runTextExtraction(
+            specsFile, specsPages, extractCtrl.signal,
+            (page) => setPreviewDocs((prev) =>
+              prev.map((d) => d.id === "extra-0" ? { ...d, pagesExtracted: page } : d)),
           );
-          if (!ocrCtrl.signal.aborted) {
-            setPageTexts(ocrTexts);
-            setExtractedText(ocrTexts.join("\n\n"));
+          if (!extractCtrl.signal.aborted) {
+            setPreviewDocs((prev) => prev.map((d) =>
+              d.id === "extra-0"
+                ? { ...d, pageTexts: specsExtracted.pageTexts, pageTitles: specsExtracted.pageTitles,
+                    pageSheets: specsExtracted.pageSheets, pagesExtracted: specsPages, isDone: true }
+                : d));
           }
         } catch (e) {
-          if (!ocrCtrl.signal.aborted) setError(`OCR failed: ${e.message}`);
-        } finally {
-          setIsOcring(false); setOcrProgress({ page: 0, total: 0 });
+          if (!extractCtrl.signal.aborted) console.warn("[sample] specs extraction failed:", e.message);
+          setPreviewDocs((prev) => prev.map((d) => d.id === "extra-0" ? { ...d, isDone: true } : d));
         }
+      } else {
+        setPreviewDocs((prev) => prev.map((d) => d.id === "extra-0" ? { ...d, isDone: true } : d));
       }
+
+      // OCR decision deferred to handleOpenInNavigator
+      const _avgChars = drawingsTexts.length > 0
+        ? drawingsTexts.reduce((s, t) => s + (t || "").length, 0) / drawingsTexts.length : 0;
+      pendingOcrRef.current = _avgChars < OCR_CHAR_THRESHOLD && pages > 0
+        ? { file: drawingsFile, pages } : null;
     }).catch((err) => {
       const msg = err instanceof Error ? err.message : "Network error";
       console.error("[sample] load failed:", msg);
@@ -497,6 +586,56 @@ export default function App() {
       setSampleError(msg);
     });
   }, []); // all deps are stable refs, setters, or module-level constants
+
+  // ── Open preview → workspace ─────────────────────────────────────────────────
+  const handleOpenInNavigator = useCallback(async () => {
+    const docs    = previewDocsRef.current;
+    const primary = docs[0];
+    if (!primary) return;
+
+    // Set primary doc text data for workspace
+    setPageTexts(primary.pageTexts);
+    setPageTitles(primary.pageTitles);
+    setPageSheets(primary.pageSheets);
+    setExtractedText(primary.pageTexts.join("\n\n"));
+
+    // Pass pre-extracted extra doc data so Workspace skips re-extraction
+    const extras = docs.slice(1);
+    setPreloadedTabData(extras.map((d) => ({
+      name:       d.name,
+      pageTexts:  d.pageTexts,
+      pageTitles: d.pageTitles,
+      pageSheets: d.pageSheets,
+      numPages:   d.pages,
+    })));
+
+    setAppState("workspace");
+
+    // Run OCR if primary text was too sparse (decision was made during extraction)
+    const ocrTarget = pendingOcrRef.current;
+    if (ocrTarget) {
+      pendingOcrRef.current = null;
+      setIsOcring(true);
+      const ocrCtrl = new AbortController();
+      ocrAbortRef.current = ocrCtrl;
+      try {
+        const ocrTexts = await runOcr(
+          ocrTarget.file, ocrTarget.pages,
+          (pg, total) => setOcrProgress({ page: pg, total }),
+          ocrCtrl.signal,
+        );
+        if (!ocrCtrl.signal.aborted) {
+          setPageTexts(ocrTexts);
+          setExtractedText(ocrTexts.join("\n\n"));
+        }
+      } catch (e) {
+        if (!ocrCtrl.signal.aborted) setError(`OCR failed: ${e.message}`);
+      } finally {
+        setIsOcring(false);
+        setOcrProgress({ page: 0, total: 0 });
+      }
+    }
+  }, []); // uses stable refs and setters only
 
   // ── Drag-to-reorder for combine file list ─────────────────────────────────────
   const handleDragStart = useCallback((index) => { dragIndexRef.current = index; }, []);
@@ -849,14 +988,16 @@ export default function App() {
         </>
       )}
 
-      {/* ── Preview ── */}
-      {appState === "preview" && file && meta && (
-        <PreviewMode
-          file={file}
-          meta={meta}
-          pageTexts={pageTexts}
-          extractedText={extractedText}
-          onUseDocument={() => setAppState("workspace")}
+      {/* ── Extraction Preview ── */}
+      {appState === "preview" && (
+        <ExtractionPreview
+          docs={previewDocs}
+          projectName={previewProjectName}
+          setProjectName={setPreviewProjectName}
+          onOpen={handleOpenInNavigator}
+          onboardDone={onboardDone}
+          previewTourDone={previewTourDone}
+          onPreviewTourDone={() => setPreviewTourDone(true)}
         />
       )}
 
@@ -879,6 +1020,8 @@ export default function App() {
             pendingProjectName={pendingProjectName}
             isSampleProject={isSampleProject}
             onShowFeedback={() => setShowFeedback(true)}
+            preloadedTabData={preloadedTabData}
+            skipWelcome={previewTourDone}
           />
         </WorkspaceErrorBoundary>
       )}
@@ -922,7 +1065,7 @@ function extractPageMetaClient(items, pageW, pageH) {
 
 // ── Client-side text extraction ───────────────────────────────────────────────
 
-async function runTextExtraction(file, numPages, signal) {
+async function runTextExtraction(file, numPages, signal, onProgress) {
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
   const pageTexts = [], pageTitles = [], pageSheets = [];
@@ -938,6 +1081,7 @@ async function runTextExtraction(file, numPages, signal) {
       pageTexts.push(text);
       pageTitles.push(title);
       pageSheets.push(sheet);
+      onProgress?.(i, numPages);
     }
   } finally {
     await pdf.destroy();
