@@ -2689,7 +2689,13 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   return (
     <div className="ws-root">
       {/* ── Workspace Onboarding Tour ── */}
-      {!onboardDone && <WorkspaceOnboarding onClose={onOnboardDone} />}
+      {!onboardDone && (
+        <WorkspaceOnboarding
+          onClose={onOnboardDone}
+          pageSheets={activePageSheets}
+          onSwitchToFirstTab={() => setActiveDocId(null)}
+        />
+      )}
 
       {/* ── Menu Bar ── */}
       <div className="ws-menubar" ref={menuBarRef}>

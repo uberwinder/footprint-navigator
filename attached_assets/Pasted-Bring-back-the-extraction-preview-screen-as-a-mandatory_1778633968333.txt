@@ -1,0 +1,100 @@
+Bring back the extraction preview screen as a 
+mandatory step between upload and the viewer.
+Use the old PreviewMode component as a visual 
+reference for aesthetics — dark background, 
+progress bar style, centered layout, same fonts 
+and colors as the rest of the app.
+
+This screen appears for BOTH user-uploaded AND 
+sample project files.
+
+THE FLOW:
+1. User uploads document(s) OR loads sample project
+2. Extraction preview screen appears immediately
+3. Text extraction runs and completes on this screen
+4. User reviews then clicks "Open in Navigator"
+5. Viewer opens with thumbnails already populated
+
+AESTHETICS — match the old preview screen:
+- Full screen dark background (#0a0a0a)
+- Footprint Navigator logo/name at top left
+- Centered content area, max-width 800px
+- Electric blue (#007BFF) accents
+- Montserrat font throughout
+- Same progress bar style as old upload screen
+- Clean, minimal — no clutter
+
+CONTENT:
+
+TOP SECTION:
+- Title: "Reviewing Your Documents"
+- Subtitle: "Extraction complete — everything 
+  looks good. Review below and click Open 
+  in Navigator when ready."
+- While extraction is running show:
+  "Extracting text... page X of Y"
+  with an animated progress bar in electric blue
+
+TABS — one per document:
+- Tab per document, same tab style as workspace
+- Active tab: blue border, bold text
+- Tab label = filename truncated to 30 chars
+
+EACH TAB CONTENT:
+- Filename (full) in white, 16px
+- Page count in gray below filename
+- Status badge (pill shape):
+  - Green "Ready" — sheets detected
+  - Yellow "Review" — no sheets detected
+  - Red "Check" — no text extracted
+- Section: "Detected Sheets"
+  - Scrollable list, max height 200px
+  - Each row: sheet number · Page N
+  - If none: "No sheet numbers detected"
+  - Show count: "47 sheets detected"
+- Section: "Extracted Text Sample (Page 1)"
+  - Dark inset box, monospace font, 13px
+  - First 400 chars of page 1 text
+  - Scrollable
+  - If empty: "No text extracted from this page"
+
+PROJECT NAME (if multiple documents):
+- Show below tabs
+- Label: "Project Name"
+- Standard text input — always editable, 
+  user can click and type to change it at 
+  any time
+- Pre-filled with first document filename 
+  minus the file extension
+- Styled: dark background, white text, 
+  blue border on focus
+- Helper text below: "Documents in the same 
+  project are searched together by Navigator"
+
+BOTTOM:
+- "Open in Navigator" button
+- Electric blue, full width, 48px tall, bold
+- Disabled with spinner while extraction running
+- Enabled once ALL documents finish extracting
+
+ONBOARDING TOUR:
+- First tour stop is THIS screen
+- Bubble text: "This is the document review 
+  screen. Here you can confirm your documents 
+  uploaded correctly, check detected sheet 
+  numbers, and preview extracted text. When 
+  everything looks good, click Open in 
+  Navigator to begin."
+- Got it advances to next feature in viewer
+
+REVERT commit 94473a09 — the tour polling 
+delay is no longer needed.
+
+Before writing any code answer these 3 questions:
+1. When does extraction start and how does 
+   progress show in real time on this screen?
+2. How does "Open in Navigator" know all 
+   documents are done extracting?
+3. How do sample files loaded as ArrayBuffers 
+   feed into this screen the same as 
+   uploaded files?
