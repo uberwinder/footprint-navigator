@@ -838,18 +838,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
       try { localStorage.setItem("chatOpened", "true"); } catch {}
     }
   }, [chatOpen, chatOpened]);
-  useEffect(() => {
-    if (tourAction === "open-project-files") {
-      setChatOpen(true);
-      setSettingsOpen(true);
-      setTourAction(null);
-    }
-    if (tourAction === "close-chat") {
-      setChatOpen(false);
-      setSettingsOpen(false);
-      setTourAction(null);
-    }
-  }, [tourAction]);
   const [chatHeight,   setChatHeight]   = useState(400);
   const [chatInput,    setChatInput]    = useState("");
   const [chatMessages, setChatMessages] = useState(() => {
@@ -868,6 +856,18 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   // Settings panel
   const [settingsOpen,    setSettingsOpen]    = useState(false);
   const [tourAction,      setTourAction]      = useState(null);
+  useEffect(() => {
+    if (tourAction === "open-project-files") {
+      setChatOpen(true);
+      setSettingsOpen(true);
+      setTourAction(null);
+    }
+    if (tourAction === "close-chat") {
+      setChatOpen(false);
+      setSettingsOpen(false);
+      setTourAction(null);
+    }
+  }, [tourAction]);
   const [customPrompt,    setCustomPrompt]    = useState(() => localStorage.getItem("navigator-system-prompt") || "");
   const [responseLength,  setResponseLength]  = useState(() => localStorage.getItem("navigator-response-length") || "medium");
   const [keywordThreshold,setKeywordThreshold]= useState(() => parseInt(localStorage.getItem("navigator-keyword-threshold") || "3", 10));
