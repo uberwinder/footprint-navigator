@@ -1,0 +1,59 @@
+Three fixes — all in one push.
+
+STEP 1 — READ FIRST before writing any code:
+1. Show me the exact current bubble text and 
+   Got it handler for the Navigator AI Chat 
+   stop and the Settings and AI Modes stop 
+   in WorkspaceOnboarding.jsx
+2. Show me the chat open/close mechanism in 
+   Workspace.jsx — specifically what state 
+   or function controls chatOpen
+3. Show me exactly where the drawings tab 
+   force-switch runs in WorkspaceOnboarding — 
+   which stop triggers it and on which line
+
+THEN make these changes:
+
+FIX 1 — TOUR STILL OPENING ON SPECS TAB:
+The tour is starting on the specs tab (tab 2) 
+instead of the drawings tab (tab 1).
+
+The previous fix called setActiveDocId(null) 
+but it is not working. Try a different approach:
+
+Find the onSwitchToFirstTab prop or equivalent 
+passed from Workspace to WorkspaceOnboarding. 
+Call it immediately when the tour component 
+MOUNTS — not when the first feature stop 
+starts streaming. Use a useEffect with empty 
+deps [] that fires once on mount and calls 
+the tab switch immediately.
+
+FIX 2 — NAVIGATOR AI CHAT STOP:
+1. Change bubble text to:
+   "The chat panel is where the real power is. 
+   Ask Navigator anything about your document 
+   in plain language and it will find the answer 
+   and link directly to the page it came from. 
+   Press Ctrl+Enter now to open it."
+2. Hide the "Got it" button — replace with 
+   grayed out text: 
+   "Waiting for you to open the chat..."
+3. Watch for chat panel to open — when 
+   chatOpen becomes true, automatically 
+   advance to Settings stop
+4. Remove spotlight from chat button once 
+   chat opens
+
+FIX 3 — SETTINGS AND AI MODES STOP:
+1. Find the CSS selector for the settings 
+   gear icon inside the chat panel and apply 
+   tour-spotlight-active to it while this 
+   stop is active
+2. Keep chat panel open during this stop
+3. When user clicks Got it:
+   - Remove spotlight
+   - Close chat panel automatically
+   - End the tour
+
+Push to GitHub after all three fixes.

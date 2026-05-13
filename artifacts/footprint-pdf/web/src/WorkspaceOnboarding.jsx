@@ -35,11 +35,11 @@ const FEATURES = [
     title: "Navigator AI Chat",
     spotlight: ".ws-chat-toggle",
     intro:
-      "The chat panel in the bottom right is where the real power is. Ask Navigator anything about your document in plain language and it will find the answer and link directly to the page it came from. Open and close the chat panel anytime with Ctrl+Enter, or click the pulsing blue button in the bottom right of the toolbar.",
+      "The chat panel is where the real power is. Ask Navigator anything about your document in plain language and it will find the answer and link directly to the page it came from. Press Ctrl+Enter now to open it.",
   },
   {
     title: "Settings and AI Modes",
-    spotlight: null,
+    spotlight: ".ws-chat-gear",
     intro:
       "The chat panel also has its own settings that give you full control over how Navigator responds. To access them, open the chat panel and look for the settings icon inside it. From there you can choose your AI mode, customize how Navigator responds, and track your usage.",
   },
@@ -51,7 +51,7 @@ const TW_INTERVAL = 18;
 // opening → opening-buttons → feature-intro → chips → … → handoff
 // → qa-input → qa-thinking → qa-answer → qa-input | done
 
-export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSwitchToDrawings, onSpotlight }) {
+export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSwitchToDrawings, onSpotlight, chatOpen, onCloseChat }) {
   const [phase,        setPhase]        = useState(skipWelcome ? "feature-intro" : "opening");
   const [featureIndex, setFeatureIndex] = useState(0);
   const [streamedText, setStreamedText] = useState("");
@@ -118,13 +118,28 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Spotlight target element + switch to drawings tab when a feature starts
+  // Switch to drawings tab immediately on mount (before any streaming starts)
+  useEffect(() => {
+    onSwitchToDrawings?.();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Set spotlight when a feature starts streaming
   useEffect(() => {
     if (phase !== "feature-intro") return;
-    if (featureIndex === 0) onSwitchToDrawings?.();
     onSpotlight?.(FEATURES[featureIndex].spotlight ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, featureIndex]);
+
+  // Auto-advance from Navigator AI Chat stop when user opens the chat
+  useEffect(() => {
+    if (!chatOpen) return;
+    if (featureIndex !== 3) return;
+    if (phase !== "chips" && phase !== "feature-intro") return;
+    onSpotlight?.(null);
+    advanceFeature();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatOpen]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const callAI = useCallback(async (question, hist) => {
@@ -165,6 +180,11 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
     onSpotlight?.(null);
     advanceFeature();
   }, [advanceFeature, onSpotlight]);
+
+  const handleSettingsGotIt = useCallback(() => {
+    onCloseChat?.();
+    handleClose();
+  }, [onCloseChat, handleClose]);
 
   const handleQaSend = useCallback(async () => {
     const q = qaInput.trim();
@@ -225,8 +245,16 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
             </button>
           )}
 
-          {phase === "chips" && (
+          {phase === "chips" && featureIndex !== 3 && featureIndex !== 4 && (
             <button className="wob-btn wob-btn--primary" onClick={handleGotIt}>
+              Got it
+            </button>
+          )}
+          {phase === "chips" && featureIndex === 3 && (
+            <span className="wob-waiting-text">Waiting for you to open the chat…</span>
+          )}
+          {phase === "chips" && featureIndex === 4 && (
+            <button className="wob-btn wob-btn--primary" onClick={handleSettingsGotIt}>
               Got it
             </button>
           )}

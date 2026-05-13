@@ -2717,6 +2717,8 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
           skipWelcome={skipWelcome}
           onSwitchToDrawings={() => setActiveDocId(null)}
           onSpotlight={handleTourSpotlight}
+          chatOpen={chatOpen}
+          onCloseChat={() => setChatOpen(false)}
         />
       )}
 

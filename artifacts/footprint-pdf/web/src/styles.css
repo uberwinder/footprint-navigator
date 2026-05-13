@@ -2938,6 +2938,14 @@ button { font-family: inherit; }
   z-index: 600;
 }
 
+/* Waiting prompt on Navigator AI Chat tour stop */
+.wob-waiting-text {
+  font-size: 12px;
+  color: var(--text-dim, #888);
+  font-style: italic;
+  padding: 4px 0;
+}
+
 /* ── Tour spotlight ────────────────────────────────────────────────────────── */
 @keyframes tour-spotlight {
   0%   { box-shadow: 0 0 0 3px #007BFF, 0 0 16px #007BFF; }
