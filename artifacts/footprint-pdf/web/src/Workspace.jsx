@@ -3022,7 +3022,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                     onSelect={jumpToPage}
                     filename={activeMeta.filename}
                     docType={activeDocType}
-                    pageSheets={activePageSheets}
                   />
                 )}
                 {activePanelTab === "search" && (
@@ -4613,7 +4612,7 @@ function BookmarksPanel({ pageSheets, pageTexts, numPages, jumpToPage, preloadPa
   );
 }
 
-function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename, docType, pageSheets }) {
+function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename, docType }) {
   console.log("[thumb] docType:", docType);
   const pages = Array.from({ length: numPages }, (_, i) => i + 1);
   return (
@@ -4627,7 +4626,6 @@ function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename, docT
           onSelect={onSelect}
           filename={filename}
           docType={docType}
-          preloadedSheet={pageSheets?.[n - 1] || null}
         />
       ))}
     </div>
@@ -4637,7 +4635,7 @@ function ThumbnailList({ pdfDoc, numPages, currentPage, onSelect, filename, docT
 let thumbRenderCount = 0;
 const MAX_THUMB_RENDERS = 3;
 
-function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename, docType, preloadedSheet }) {
+function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename, docType }) {
   const canvasRef    = useRef(null);
   const containerRef = useRef(null);
   const rendered     = useRef(false);
@@ -4645,7 +4643,7 @@ function ThumbnailItem({ pdfDoc, pageNum, isActive, onSelect, filename, docType,
 
   const storageKey = `footprint-label-${filename}-${pageNum}`;
 
-  const [detectedSheet, setDetectedSheet] = useState(() => preloadedSheet || null);
+  const [detectedSheet, setDetectedSheet] = useState(null);
   const [userLabel,     setUserLabel]     = useState(() => {
     try { return localStorage.getItem(storageKey) || null; } catch { return null; }
   });
