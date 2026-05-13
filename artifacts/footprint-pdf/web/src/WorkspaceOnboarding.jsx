@@ -21,7 +21,7 @@ const FEATURES = [
   },
   {
     title: "Project Files",
-    spotlight: null,
+    spotlight: "#ws-settings-project-files",
     intro:
       "Navigator can work with up to 5 related documents at once in a single project. To set this up, open the chat panel in the bottom right corner, then click the gear icon inside the chat panel to open Settings. Look for the Project Files section. Add your specs, RFIs, submittals, or any related PDF there, give your project a name, and Navigator will search all of them together — always telling you which document an answer came from. You can also paste project links to keep everything in one place. Full integrations are currently in development.",
   },
@@ -51,7 +51,7 @@ const TW_INTERVAL = 18;
 // opening → opening-buttons → feature-intro → chips → … → handoff
 // → qa-input → qa-thinking → qa-answer → qa-input | done
 
-export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSwitchToDrawings, onSpotlight, chatOpen, onCloseChat }) {
+export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSwitchToDrawings, onSpotlight, chatOpen, onTourAction }) {
   const [phase,        setPhase]        = useState(skipWelcome ? "feature-intro" : "opening");
   const [featureIndex, setFeatureIndex] = useState(0);
   const [streamedText, setStreamedText] = useState("");
@@ -124,10 +124,11 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Set spotlight when a feature starts streaming
+  // Set spotlight when a feature starts streaming; signal Workspace for Project Files stop
   useEffect(() => {
     if (phase !== "feature-intro") return;
     onSpotlight?.(FEATURES[featureIndex].spotlight ?? null);
+    if (featureIndex === 1) onTourAction?.("open-project-files");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, featureIndex]);
 
@@ -181,10 +182,16 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
     advanceFeature();
   }, [advanceFeature, onSpotlight]);
 
+  const handleProjectFilesGotIt = useCallback(() => {
+    onSpotlight?.(null);
+    onTourAction?.("close-chat");
+    advanceFeature();
+  }, [onSpotlight, onTourAction, advanceFeature]);
+
   const handleSettingsGotIt = useCallback(() => {
-    onCloseChat?.();
+    onTourAction?.("close-chat");
     handleClose();
-  }, [onCloseChat, handleClose]);
+  }, [onTourAction, handleClose]);
 
   const handleQaSend = useCallback(async () => {
     const q = qaInput.trim();
@@ -245,8 +252,13 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
             </button>
           )}
 
-          {phase === "chips" && featureIndex !== 3 && featureIndex !== 4 && (
+          {phase === "chips" && featureIndex !== 1 && featureIndex !== 3 && featureIndex !== 4 && (
             <button className="wob-btn wob-btn--primary" onClick={handleGotIt}>
+              Got it
+            </button>
+          )}
+          {phase === "chips" && featureIndex === 1 && (
+            <button className="wob-btn wob-btn--primary" onClick={handleProjectFilesGotIt}>
               Got it
             </button>
           )}
