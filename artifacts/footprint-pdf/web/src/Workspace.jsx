@@ -855,19 +855,6 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
   const [docIntelGlow,  setDocIntelGlow]   = useState(false);
   // Settings panel
   const [settingsOpen,    setSettingsOpen]    = useState(false);
-  const [tourAction,      setTourAction]      = useState(null);
-  useEffect(() => {
-    if (tourAction === "open-project-files") {
-      setChatOpen(true);
-      setSettingsOpen(true);
-      setTourAction(null);
-    }
-    if (tourAction === "close-chat") {
-      setChatOpen(false);
-      setSettingsOpen(false);
-      setTourAction(null);
-    }
-  }, [tourAction]);
   const [customPrompt,    setCustomPrompt]    = useState(() => localStorage.getItem("navigator-system-prompt") || "");
   const [responseLength,  setResponseLength]  = useState(() => localStorage.getItem("navigator-response-length") || "medium");
   const [keywordThreshold,setKeywordThreshold]= useState(() => parseInt(localStorage.getItem("navigator-keyword-threshold") || "3", 10));
@@ -2731,7 +2718,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
           onSwitchToDrawings={() => setActiveDocId(null)}
           onSpotlight={handleTourSpotlight}
           chatOpen={chatOpen}
-          onTourAction={setTourAction}
+          onCloseChat={() => setChatOpen(false)}
         />
       )}
 
@@ -3478,7 +3465,7 @@ export default function Workspace({ file, meta, pageTexts, pageTitles, pageSheet
                   </div>
 
                   {/* S4: Project Files */}
-                  <div id="ws-settings-project-files" className="ws-settings-section">
+                  <div className="ws-settings-section">
                     <div className="ws-settings-section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span>Project Files</span>
                       <span className="ws-settings-doc-count">{1 + extraDocs.length + contextFiles.length} of 5 documents</span>

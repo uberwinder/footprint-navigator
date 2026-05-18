@@ -23,7 +23,7 @@ const FEATURES = [
     title: "Project Files",
     spotlight: null,
     intro:
-      "Navigator can work with up to 5 related documents in a single project. To set this up, open the chat panel with Ctrl+Enter, then click the gear icon inside it to open Settings. Look for the Project Files section to add your specs, RFIs, or any related document. Navigator will search all of them together and always tell you which document an answer came from.",
+      "Navigator can work with up to 5 related documents at once in a single project. To set this up, open the chat panel in the bottom right corner, then click the gear icon inside the chat panel to open Settings. Look for the Project Files section. Add your specs, RFIs, submittals, or any related PDF there, give your project a name, and Navigator will search all of them together — always telling you which document an answer came from. You can also paste project links to keep everything in one place. Full integrations are currently in development.",
   },
   {
     title: "Measurement Tools",
@@ -51,7 +51,7 @@ const TW_INTERVAL = 18;
 // opening → opening-buttons → feature-intro → chips → … → handoff
 // → qa-input → qa-thinking → qa-answer → qa-input | done
 
-export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSwitchToDrawings, onSpotlight, chatOpen, onTourAction }) {
+export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSwitchToDrawings, onSpotlight, chatOpen, onCloseChat }) {
   const [phase,        setPhase]        = useState(skipWelcome ? "feature-intro" : "opening");
   const [featureIndex, setFeatureIndex] = useState(0);
   const [streamedText, setStreamedText] = useState("");
@@ -182,9 +182,9 @@ export default function WorkspaceOnboarding({ onClose, skipWelcome = false, onSw
   }, [advanceFeature, onSpotlight]);
 
   const handleSettingsGotIt = useCallback(() => {
-    onTourAction?.("close-chat");
+    onCloseChat?.();
     handleClose();
-  }, [onTourAction, handleClose]);
+  }, [onCloseChat, handleClose]);
 
   const handleQaSend = useCallback(async () => {
     const q = qaInput.trim();

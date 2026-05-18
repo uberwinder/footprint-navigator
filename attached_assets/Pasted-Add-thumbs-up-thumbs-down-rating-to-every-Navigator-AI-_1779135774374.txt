@@ -1,0 +1,97 @@
+Add thumbs up / thumbs down rating to every 
+Navigator AI chat response.
+
+FRONTEND:
+
+1. Below every AI response in the chat panel, 
+   add a rating row with two SVG icon buttons:
+   
+   Thumbs up SVG:
+   <svg width="16" height="16" viewBox="0 0 24 24" 
+     fill="none" stroke="currentColor" 
+     strokeWidth="2">
+     <path d="M14 9V5a3 3 0 0 0-3-3l-4 10v11h11.28
+       a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+     <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 
+       2-2h3"/>
+   </svg>
+
+   Thumbs down SVG:
+   <svg width="16" height="16" viewBox="0 0 24 24" 
+     fill="none" stroke="currentColor" 
+     strokeWidth="2">
+     <path d="M10 15v4a3 3 0 0 0 3 3l4-10V2H5.72
+       a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/>
+     <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7
+       a2.31 2.31 0 0 1-2.33 2H17"/>
+   </svg>
+
+2. Default state: both icons gray (#666)
+   - Thumbs up hover/selected: blue (#007BFF)
+   - Thumbs down hover/selected: red (#cc0000)
+   - Only one can be selected at a time
+   - Clicking selected icon deselects it
+
+3. After thumbs DOWN is clicked:
+   - Show a small text area below the icons:
+     placeholder: "What went wrong? (optional)"
+   - Two options: "Submit" button and "Skip" link
+   - Both submit the rating (Skip just sends 
+     no comment)
+
+4. After rating submitted or thumbs UP clicked:
+   - Show small gray "Noted." text that fades 
+     after 2 seconds
+   - Icons stay in selected state permanently
+
+5. Only show rating row on AI responses 
+   (msg.aiAnswer === true) — not on user 
+   messages or system messages
+
+DATA TO CAPTURE:
+- question: the user message that prompted 
+  this response
+- response: full response text
+- rating: "up" or "down"
+- comment: optional text from thumbs down
+- document_name: active document filename
+- page_number: current page number
+- confidence: confidence value from response
+- model: model name from response metadata
+- timestamp: ISO string
+
+POST to /pdf-api/chat-rating
+
+BACKEND:
+
+1. Add POST /pdf-api/chat-rating route:
+   - Store in new Postgres table chat_ratings:
+     id, question, response, rating, comment,
+     document_name, page_number, confidence, 
+     model, timestamp, created_at
+   - Create table on server start if not exists
+
+2. On every DOWN rating — send email via 
+   Resend to info@footprintnavigator.com:
+   Subject: "LOW RATING — Navigator Chat"
+   Body:
+   Question: [question]
+   Response: [response]
+   Comment: [comment or "none"]
+   Document: [document name]
+   Page: [page number]
+   Model: [model]
+   Confidence: [confidence]
+   Time: [timestamp]
+
+3. Add GET /pdf-api/admin/chat-ratings 
+   with ADMIN_KEY auth — returns all ratings 
+   ordered by created_at desc, limit 100
+
+STYLE:
+- Rating row same visual weight as the 
+  model/confidence metadata line
+- No emojis anywhere
+- Keep it subtle — small icons, light touch
+
+Push to GitHub after building.
